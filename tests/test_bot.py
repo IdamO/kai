@@ -20,7 +20,6 @@ from telegram.error import BadRequest
 from kai.bot import (
     _chunk_text,
     _clear_responding,
-    _edit_message_safe,
     _is_authorized,
     _is_workspace_allowed,
     _models_keyboard,
@@ -571,52 +570,6 @@ class TestReplySafe:
         assert result == "sent-plain"
         assert msg.reply_text.call_count == 2
 
-
-# ── _edit_message_safe ───────────────────────────────────────────────
-
-
-class TestEditMessageSafe:
-    @pytest.mark.asyncio
-    async def test_markdown_edit_success(self):
-        msg = MagicMock()
-        msg.edit_text = AsyncMock()
-        await _edit_message_safe(msg, "hello")
-        msg.edit_text.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_markdown_fails_retries_plain(self):
-        """BadRequest on Markdown triggers plain text retry."""
-        msg = MagicMock()
-        msg.edit_text = AsyncMock(side_effect=[BadRequest("bad"), None])
-        await _edit_message_safe(msg, "text")
-        assert msg.edit_text.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_both_fail_no_exception(self, caplog):
-        """Both Markdown and plain text fail: logs debug, no exception raised."""
-        msg = MagicMock()
-        msg.edit_text = AsyncMock(side_effect=[BadRequest("bad"), RuntimeError("fail")])
-        with caplog.at_level(logging.DEBUG, logger="kai.bot"):
-            await _edit_message_safe(msg, "text")
-        assert "Failed to edit message" in caplog.text
-
-    @pytest.mark.asyncio
-    async def test_non_badrequest_exception(self, caplog):
-        """Non-BadRequest exception is caught and logged."""
-        msg = MagicMock()
-        msg.edit_text = AsyncMock(side_effect=RuntimeError("network"))
-        with caplog.at_level(logging.DEBUG, logger="kai.bot"):
-            await _edit_message_safe(msg, "text")
-        assert "Failed to edit message" in caplog.text
-
-    @pytest.mark.asyncio
-    async def test_long_text_truncated(self):
-        """Text exceeding 4096 chars is truncated before editing."""
-        msg = MagicMock()
-        msg.edit_text = AsyncMock()
-        await _edit_message_safe(msg, "a" * 5000)
-        sent = msg.edit_text.call_args[0][0]
-        assert len(sent) <= 4096
 
 
 # ── _models_keyboard ─────────────────────────────────────────────────
@@ -1878,16 +1831,11 @@ class TestHandleResponse:
         assert update.message.reply_text.called
 
     @pytest.mark.asyncio
-    async def test_final_matches_last_edit_no_redundant(self):
-        """When final text matches last edit, no extra edit is made."""
+    async def test_short_response_single_bubble(self):
+        """Short response: sent as a single reply_text bubble."""
         from kai.bot import _handle_response
 
         update = _make_update()
-        # The live message mock - track edit_text calls
-        live_msg = MagicMock()
-        live_msg.edit_text = AsyncMock()
-        update.message.reply_text = AsyncMock(return_value=live_msg)
-
         claude = _make_mock_claude()
         claude.send = MagicMock(return_value=_fake_stream(_text_event("Done"), _done_event("Done")))
         ctx = _make_context(claude=claude)
@@ -1895,18 +1843,16 @@ class TestHandleResponse:
         with patch.multiple("kai.bot", **self._base_patches()):
             await _handle_response(update, ctx, 12345, "test", claude, "sonnet")
 
-        # The important thing is no exception was raised and
-        # the response completed successfully
+        # Response should be sent as reply_text (new bubble)
+        assert update.message.reply_text.called
 
     @pytest.mark.asyncio
     async def test_stop_interruption(self):
-        """Stop event during streaming: edits '(stopped)', returns without error."""
+        """Stop event during streaming: sends '(stopped)' reply, no error."""
         from kai.bot import _handle_response
 
         update = _make_update()
-        live_msg = MagicMock()
-        live_msg.edit_text = AsyncMock()
-        update.message.reply_text = AsyncMock(return_value=live_msg)
+        update.message.reply_text = AsyncMock()
 
         stop_event = asyncio.Event()
 
@@ -1927,8 +1873,9 @@ class TestHandleResponse:
         ):
             await _handle_response(update, ctx, 12345, "test", claude, "sonnet")
 
-        # Should NOT send the "No response" error
+        # Should send "(stopped)" and NOT "Error"
         replies = [c[0][0] for c in update.message.reply_text.call_args_list]
+        assert any("stopped" in r for r in replies)
         assert not any("Error" in r for r in replies)
 
     @pytest.mark.asyncio
@@ -1949,15 +1896,11 @@ class TestHandleResponse:
         assert any("No response from Claude" in r for r in replies)
 
     @pytest.mark.asyncio
-    async def test_error_response_with_live_msg(self):
-        """success=False with existing live message: edits error into live message."""
+    async def test_error_response_after_partial_stream(self):
+        """success=False after partial streaming: sends error as reply."""
         from kai.bot import _handle_response
 
         update = _make_update()
-        live_msg = MagicMock()
-        live_msg.edit_text = AsyncMock()
-        update.message.reply_text = AsyncMock(return_value=live_msg)
-
         claude = _make_mock_claude()
         claude.send = MagicMock(
             return_value=_fake_stream(
@@ -1970,9 +1913,9 @@ class TestHandleResponse:
         with patch.multiple("kai.bot", **self._base_patches()):
             await _handle_response(update, ctx, 12345, "test", claude, "sonnet")
 
-        # Error should be edited into the live message
-        last_edit = live_msg.edit_text.call_args_list[-1]
-        assert "Error" in last_edit[0][0]
+        # Error should be sent as a reply_text
+        replies = [c[0][0] for c in update.message.reply_text.call_args_list]
+        assert any("Error" in r for r in replies)
 
     @pytest.mark.asyncio
     async def test_error_response_no_live_msg(self):
@@ -1997,14 +1940,10 @@ class TestHandleResponse:
 
     @pytest.mark.asyncio
     async def test_long_response_chunked(self):
-        """Response > 4096 chars: first chunk edits live message, rest sent as new messages."""
+        """Response > 4096 chars: sent as multiple reply_text bubbles."""
         from kai.bot import _handle_response
 
         update = _make_update()
-        live_msg = MagicMock()
-        live_msg.edit_text = AsyncMock()
-        update.message.reply_text = AsyncMock(return_value=live_msg)
-
         long_text = "a" * 5000
         claude = _make_mock_claude()
         claude.send = MagicMock(return_value=_fake_stream(_text_event("start"), _done_event(long_text)))
@@ -2113,10 +2052,6 @@ class TestHandleResponse:
         from kai.bot import _handle_response
 
         update = _make_update()
-        live_msg = MagicMock()
-        live_msg.edit_text = AsyncMock()
-        update.message.reply_text = AsyncMock(return_value=live_msg)
-
         claude = _make_mock_claude()
         claude.send = MagicMock(return_value=_fake_stream(_text_event("Hi"), _done_event("Hi there")))
         config = _make_config(tts_enabled=True, piper_model_dir=Path("/models"))

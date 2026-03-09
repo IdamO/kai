@@ -191,6 +191,9 @@ class PersistentClaude:
         # API logs. The inner Claude references $KAI_WEBHOOK_SECRET in curl
         # commands instead of a literal secret value.
         env = os.environ.copy()
+        # Remove API key so Claude Code uses the host's Max subscription
+        # login instead of pay-per-use API billing.
+        env.pop("ANTHROPIC_API_KEY", None)
         if self.webhook_secret:
             env["KAI_WEBHOOK_SECRET"] = self.webhook_secret
 
@@ -201,7 +204,7 @@ class PersistentClaude:
             stderr=asyncio.subprocess.PIPE,
             cwd=str(self.workspace),
             env=env,
-            limit=1024 * 1024,  # 1 MiB; default 64 KiB too small for large tool results
+            limit=4 * 1024 * 1024,  # 4 MiB; research tasks can produce very large JSON lines
             # When spawned via sudo, start in a new process group so we can
             # kill the entire tree (sudo + claude) via os.killpg(). Without
             # this, killing sudo may orphan the claude process.
@@ -473,6 +476,12 @@ class PersistentClaude:
                         response=ClaudeResponse(success=False, text=accumulated_text, error="Claude timed out"),
                     )
                     return
+                except ValueError:
+                    # asyncio.StreamReader.readline() raises ValueError when a
+                    # single line exceeds the buffer limit. Skip the oversized
+                    # line (likely a huge tool result) and keep reading.
+                    log.warning("Skipping oversized stdout line (exceeded buffer limit)")
+                    continue
 
                 if not line:
                     # Process died unexpectedly

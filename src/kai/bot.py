@@ -83,11 +83,6 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
-# Minimum interval between Telegram message edits (seconds).
-# Telegram rate-limits message edits; 2 seconds keeps us safely below the limit
-# while still giving the user a sense of streaming output.
-EDIT_INTERVAL = 2.0
-
 # Flag file written while processing a message. If the process crashes mid-response,
 # main.py detects this file at startup and notifies the user to resend. Lives under
 # DATA_DIR so it's writable even when source is in read-only /opt/kai/.
@@ -176,28 +171,6 @@ async def _reply_safe(msg: Message, text: str) -> Message:
     except BadRequest:
         return await msg.reply_text(text)
 
-
-async def _edit_message_safe(msg: Message, text: str) -> None:
-    """
-    Edit an existing message with Markdown, falling back to plain text.
-
-    Used during streaming to update the live response message. On BadRequest
-    (Telegram rejecting the markup), retries without parse_mode. All other
-    errors are silently ignored since edits are best-effort during streaming
-    (e.g., message not modified, message deleted by user, network blip).
-    """
-    truncated = _truncate_for_telegram(text)
-    try:
-        await msg.edit_text(truncated, parse_mode=ParseMode.MARKDOWN)
-    except BadRequest:
-        try:
-            await msg.edit_text(truncated)
-        except Exception:
-            # Editing is best-effort during streaming; log at debug so persistent
-            # issues (e.g., revoked bot token) leave a diagnostic trail
-            log.debug("Failed to edit message (plain-text fallback)", exc_info=True)
-    except Exception:
-        log.debug("Failed to edit message", exc_info=True)
 
 
 def _chunk_text(text: str, max_len: int = 4096) -> list[str]:
@@ -1567,9 +1540,6 @@ async def _handle_response(
 
     typing_task = asyncio.create_task(_keep_typing())
 
-    live_msg = None
-    last_edit_time = 0.0
-    last_edit_text = ""
     final_response = None
     stopped_by_user = False
 
@@ -1578,39 +1548,19 @@ async def _handle_response(
         stop_event = get_stop_event(chat_id)
         stop_event.clear()
 
-        # Stream events from Claude
+        # Stream events from Claude — typing indicator shows activity,
+        # final response is sent as a new message (no live editing).
         async for event in claude.send(prompt):
             # Check for /stop between stream chunks
             if stop_event.is_set():
                 stop_event.clear()
                 stopped_by_user = True
-                if live_msg:
-                    await _edit_message_safe(live_msg, last_edit_text + "\n\n_(stopped)_")
                 final_response = None
                 break
 
             if event.done:
                 final_response = event.response
                 break
-
-            # In voice-only mode, skip live text updates
-            if voice_only:
-                continue
-
-            now = time.monotonic()
-            if not event.text_so_far:
-                continue
-
-            # Create the live message on first text, then edit periodically
-            if live_msg is None:
-                truncated = _truncate_for_telegram(event.text_so_far)
-                live_msg = await _reply_safe(update.message, truncated)
-                last_edit_time = now
-                last_edit_text = event.text_so_far
-            elif now - last_edit_time >= EDIT_INTERVAL and event.text_so_far != last_edit_text:
-                await _edit_message_safe(live_msg, event.text_so_far)
-                last_edit_time = now
-                last_edit_text = event.text_so_far
     finally:
         # Always cancel the typing indicator, even if the streaming loop
         # exits with an exception. Without this, a leaked _keep_typing task
@@ -1621,19 +1571,16 @@ async def _handle_response(
         except asyncio.CancelledError:
             pass
 
-    # Handle error cases. Skip the error message if /stop was used -
-    # the user already saw the "(stopped)" edit and doesn't need a false alarm.
+    # Handle error cases. Skip the error message if /stop was used.
     if final_response is None:
         if not stopped_by_user:
             await update.message.reply_text("Error: No response from Claude")
+        else:
+            await update.message.reply_text("_(stopped)_", parse_mode=ParseMode.MARKDOWN)
         return
 
     if not final_response.success:
-        error_text = f"Error: {final_response.error}"
-        if live_msg:
-            await _edit_message_safe(live_msg, error_text)
-        else:
-            await update.message.reply_text(error_text)
+        await update.message.reply_text(f"Error: {final_response.error}")
         return
 
     # Persist session info for /stats (cost accumulates across interactions)
@@ -1653,20 +1600,8 @@ async def _handle_response(
         except TTSError as e:
             log.warning("TTS failed, falling back to text: %s", e)
 
-    # Send text response (normal mode, or voice-only fallback)
-    if live_msg:
-        # Update the live message with the final text
-        if len(final_text) <= 4096:
-            if final_text != last_edit_text:
-                await _edit_message_safe(live_msg, final_text)
-        else:
-            # Response exceeds Telegram's limit — edit first chunk, send the rest
-            chunks = _chunk_text(final_text)
-            await _edit_message_safe(live_msg, chunks[0])
-            for chunk in chunks[1:]:
-                await _reply_safe(update.message, chunk)
-    else:
-        await _send_response(update, final_text)
+    # Send final response as new message(s) — each chunk is a distinct bubble
+    await _send_response(update, final_text)
 
     # Text+voice mode: send voice note after text
     if voice_mode == "on" and final_text:
