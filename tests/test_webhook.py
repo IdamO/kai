@@ -323,6 +323,10 @@ def _build_test_app(pr_review_enabled: bool = True, cooldown: int = 300) -> web.
     # Config needed by review background tasks
     app["webhook_port"] = 8080
     app["claude_user"] = None
+    # Spec resolution config (#57): workspace path and repo name for
+    # resolving local repo paths when launching review background tasks.
+    app["workspace"] = "/home/user/workspace"
+    app["home_repo_name"] = "repo"
     # Mock bot that records sent messages
     mock_bot = AsyncMock()
     app["telegram_bot"] = mock_bot
@@ -532,3 +536,7 @@ class TestPRReviewRouting:
             assert call_kwargs[0][0] == payload
             assert call_kwargs[1]["webhook_port"] == 8080
             assert call_kwargs[1]["webhook_secret"] == _TEST_SECRET
+            # local_repo_path should be the parent of workspace (repo root,
+            # not the workspace subdirectory) since the payload repo matches
+            # home_repo_name.
+            assert call_kwargs[1]["local_repo_path"] == "/home/user"
