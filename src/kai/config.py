@@ -276,7 +276,10 @@ def parse_env_file(path: Path) -> dict[str, str]:
     """
     env: dict[str, str] = {}
     try:
-        text = path.read_text()
+        # utf-8-sig transparently strips a BOM if present. Windows
+        # editors (Notepad, etc.) often save UTF-8 with a BOM, which
+        # would silently prepend \ufeff to the first key name.
+        text = path.read_text(encoding="utf-8-sig")
     except OSError as e:
         log.warning("Cannot read env file %s: %s", path, e)
         return env
