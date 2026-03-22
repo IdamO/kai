@@ -122,21 +122,35 @@ async def init_db(db_path: Path) -> None:
     ws_columns = [row[1] for row in await cursor.fetchall()]
     if "chat_id" not in ws_columns:
         # Recreate with composite PK: copy data, drop old, rename new.
-        # This is the standard SQLite pattern for PK changes.
-        await _get_db().execute("""
-            CREATE TABLE workspace_history_new (
-                path TEXT NOT NULL,
-                chat_id INTEGER NOT NULL DEFAULT 0,
-                last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (path, chat_id)
-            )
-        """)
-        await _get_db().execute("""
-            INSERT INTO workspace_history_new (path, last_used_at)
-            SELECT path, last_used_at FROM workspace_history
-        """)
-        await _get_db().execute("DROP TABLE workspace_history")
-        await _get_db().execute("ALTER TABLE workspace_history_new RENAME TO workspace_history")
+        # Use executescript() which runs all statements atomically in a
+        # single call, avoiding reliance on Python's sqlite3 transaction
+        # suppression rules and aiosqlite's internal locking for DDL.
+        try:
+            await _get_db().executescript("""
+                BEGIN IMMEDIATE;
+                CREATE TABLE workspace_history_new (
+                    path TEXT NOT NULL,
+                    chat_id INTEGER NOT NULL DEFAULT 0,
+                    last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (path, chat_id)
+                );
+                INSERT INTO workspace_history_new (path, last_used_at)
+                    SELECT path, last_used_at FROM workspace_history;
+                DROP TABLE workspace_history;
+                ALTER TABLE workspace_history_new RENAME TO workspace_history;
+                COMMIT;
+            """)
+        except Exception:
+            # executescript() does not auto-rollback on failure. Clean up
+            # the open transaction so the long-lived connection is reusable.
+            try:
+                await _get_db().execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+    # Commit any pending DML from earlier in init_db (e.g., ALTER TABLE
+    # ADD COLUMN for jobs). No-op after a successful migration since
+    # executescript's COMMIT already committed.
     await _get_db().commit()
 
 
