@@ -35,6 +35,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
 
+from kai import events
 from kai.history import get_recent_history
 
 log = logging.getLogger(__name__)
@@ -505,6 +506,45 @@ class PersistentClaude:
                     continue
 
                 etype = event.get("type")
+
+                # Broadcast ALL events to dashboard
+                if etype == "assistant":
+                    msg_data = event.get("message", {})
+                    if isinstance(msg_data, dict) and "content" in msg_data:
+                        for block in msg_data["content"]:
+                            btype = block.get("type")
+                            if btype == "text":
+                                events.push("text", {"text": block.get("text", "")})
+                            elif btype == "tool_use":
+                                events.push("tool_use", {
+                                    "tool": block.get("name", "unknown"),
+                                    "id": block.get("id", ""),
+                                    "input": block.get("input", {}),
+                                })
+                            elif btype == "tool_result":
+                                events.push("tool_result", {
+                                    "id": block.get("tool_use_id", ""),
+                                    "output": str(block.get("content", "")),
+                                    "is_error": block.get("is_error", False),
+                                })
+                            else:
+                                events.push(btype or "unknown", block)
+                    elif isinstance(msg_data, str):
+                        events.push("text", {"text": msg_data})
+                    else:
+                        # Catch any assistant event shape we didn't expect
+                        events.push("raw", {"type": etype, "keys": list(event.keys()), "preview": str(event)[:500]})
+                elif etype == "result":
+                    events.push("result", {
+                        "cost": event.get("total_cost_usd", 0),
+                        "duration_ms": event.get("duration_ms", 0),
+                        "is_error": event.get("is_error", False),
+                    })
+                elif etype == "system":
+                    events.push("system", {"session_id": event.get("session_id", "")})
+                else:
+                    # Catch ALL other event types we haven't seen before
+                    events.push("raw", {"type": etype, "keys": list(event.keys()), "preview": str(event)[:500]})
 
                 if etype == "system":
                     sid = event.get("session_id")

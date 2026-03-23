@@ -40,7 +40,7 @@ from pathlib import Path
 from telegram import BotCommand
 from telegram.error import NetworkError
 
-from kai import cron, services, sessions, webhook
+from kai import cron, dashboard, services, sessions, webhook
 from kai.bot import _is_workspace_allowed, create_bot
 from kai.config import DATA_DIR, PROJECT_ROOT, _read_protected_file, load_config
 
@@ -189,6 +189,7 @@ def main() -> None:
             # webhooks, file exchange, and health check regardless of transport mode).
             # In webhook mode, this also registers the Telegram webhook with the API.
             await webhook.start(app, config)
+            await dashboard.start(port=3456)
             # webhook.start() initializes the confinement path from config (home workspace).
             # If a non-default workspace was restored above, sync it now so send-file
             # accepts files from the restored workspace. Must come after start() because
@@ -227,9 +228,40 @@ def main() -> None:
                 flag.unlink(missing_ok=True)
 
             logging.info("Kai is running. Press Ctrl+C to stop.")
+
+            # Polling health monitor: PTB's polling loop silently dies on DNS
+            # errors and never recovers (despite claiming max_retries=-1).
+            # The process stays alive with health 200 but can't receive messages.
+            # This monitor detects the dead polling task and force-exits so
+            # launchd KeepAlive restarts the process immediately.
+            if not use_webhook and app.updater is not None:
+                async def _polling_health_monitor() -> None:
+                    await asyncio.sleep(60)  # grace period after startup
+                    while True:
+                        await asyncio.sleep(60)  # check every 60 seconds
+                        try:
+                            # Access the internal polling task
+                            task = app.updater._Updater__polling_task  # type: ignore[attr-defined]
+                            if task is not None and task.done():
+                                exc = task.exception() if not task.cancelled() else None
+                                logging.error(
+                                    "Polling task died (exception=%s). Force-exiting for launchd restart.",
+                                    exc,
+                                )
+                                import os
+                                os._exit(1)
+                        except Exception:
+                            logging.exception("Polling health monitor error")
+
+                asyncio.create_task(
+                    _polling_health_monitor(),
+                    name="polling_health_monitor",
+                )
+
             await asyncio.Event().wait()  # Block forever until shutdown signal
         finally:
             # Shutdown in reverse order of startup
+            await dashboard.stop()
             await webhook.stop()
             # Stop the polling Updater if it was running (no-op in webhook mode
             # since the Updater was suppressed at build time)
