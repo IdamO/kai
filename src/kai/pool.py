@@ -289,9 +289,23 @@ class SubprocessPool:
                 if now - last > idle_timeout and chat_id in self._pool and chat_id not in self._in_flight
             ]
             for chat_id in to_evict:
-                # Re-check: activity may have occurred between list
-                # construction and this iteration (TOCTOU window).
+                # Re-check all three snapshot conditions before evicting.
+                # Between the snapshot and this iteration (and between
+                # iterations), await points in shutdown() yield control.
+                # Other coroutines can: refresh activity timestamps,
+                # enter send() (adding to _in_flight), or call
+                # force_kill() (removing from _pool). All three must
+                # be re-verified to avoid evicting active conversations.
+                # Pool membership first: if force_kill() already removed the
+                # instance, clean up the orphaned _last_activity entry and
+                # skip. This must be checked before the timestamp/in-flight
+                # guards so the cleanup always fires when the instance is gone.
+                if chat_id not in self._pool:
+                    self._last_activity.pop(chat_id, None)
+                    continue
                 if self._last_activity.get(chat_id, 0) > now:
+                    continue
+                if chat_id in self._in_flight:
                     continue
                 instance = self._pool.pop(chat_id, None)
                 self._last_activity.pop(chat_id, None)
