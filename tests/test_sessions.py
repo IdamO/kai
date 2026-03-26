@@ -383,6 +383,96 @@ class TestWorkspaceHistoryMigration:
             await sessions.close_db()
 
 
+# ── init_db transactional safety ────────────────────────────────────
+
+
+class TestInitDbTransaction:
+    """Verify init_db wraps all DDL in a single atomic transaction."""
+
+    @pytest.mark.asyncio
+    async def test_fresh_db_creates_all_tables(self, tmp_path):
+        """A fresh database gets all four tables in one transaction."""
+        db_path = tmp_path / "fresh.db"
+        await sessions.init_db(db_path)
+        try:
+            db = sessions._get_db()
+            # Check all four tables exist
+            cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            tables = {row[0] for row in await cursor.fetchall()}
+            assert "sessions" in tables
+            assert "jobs" in tables
+            assert "settings" in tables
+            assert "workspace_history" in tables
+        finally:
+            await sessions.close_db()
+
+    @pytest.mark.asyncio
+    async def test_idempotent_on_initialized_db(self, tmp_path):
+        """Running init_db twice on the same database is a no-op."""
+        db_path = tmp_path / "idempotent.db"
+        await sessions.init_db(db_path)
+        await sessions.close_db()
+
+        # Second init should not raise
+        await sessions.init_db(db_path)
+        try:
+            db = sessions._get_db()
+            cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            tables = {row[0] for row in await cursor.fetchall()}
+            assert "sessions" in tables
+            assert "jobs" in tables
+            assert "settings" in tables
+            assert "workspace_history" in tables
+        finally:
+            await sessions.close_db()
+
+    @pytest.mark.asyncio
+    async def test_sqlite_ddl_rollback(self, tmp_path):
+        """SQLite DDL inside BEGIN/ROLLBACK is fully undone.
+
+        This verifies the core assumption init_db relies on: that CREATE TABLE
+        inside an explicit transaction is rolled back atomically. Committed
+        tables survive; uncommitted ones are removed.
+        """
+        db_path = tmp_path / "ddl_txn.db"
+
+        async with aiosqlite.connect(str(db_path)) as conn:
+            # Committed table survives rollback of later DDL
+            await conn.execute("CREATE TABLE anchor (id INTEGER PRIMARY KEY)")
+            await conn.commit()
+
+            # This table is created inside a transaction, then rolled back
+            await conn.execute("BEGIN IMMEDIATE")
+            await conn.execute("CREATE TABLE should_not_exist (id INTEGER PRIMARY KEY)")
+            await conn.execute("ROLLBACK")
+
+        async with aiosqlite.connect(str(db_path)) as conn:
+            cursor = await conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = {row[0] for row in await cursor.fetchall()}
+            assert "anchor" in tables
+            assert "should_not_exist" not in tables
+
+    @pytest.mark.asyncio
+    async def test_init_failure_closes_connection(self, tmp_path):
+        """A failed init_db closes and nullifies the connection."""
+        db_path = tmp_path / "fail.db"
+
+        from unittest.mock import patch
+
+        # Force a failure inside init_db by making the commit raise
+        async def failing_commit(self):
+            raise RuntimeError("Simulated commit failure")
+
+        with (
+            patch.object(aiosqlite.Connection, "commit", failing_commit),
+            pytest.raises(RuntimeError, match="Simulated commit failure"),
+        ):
+            await sessions.init_db(db_path)
+
+        # Connection should be closed and _db should be None
+        assert sessions._db is None
+
+
 # ── get_all_workspace_paths ─────────────────────────────────────────
 
 
