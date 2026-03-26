@@ -370,6 +370,8 @@ class PersistentClaude:
                 self._session_age_hours(),
                 self.max_session_hours,
             )
+            # Shorter timeout for recycle since the user is waiting
+            await self._save_prompt(timeout=10)
             await self._kill()
 
         try:
@@ -701,6 +703,96 @@ class PersistentClaude:
             self._stderr_task.cancel()
             self._stderr_task = None
 
+    async def _save_prompt(self, timeout: float = 30) -> None:
+        """
+        Send a save prompt to the inner Claude before shutdown.
+
+        Gives the subprocess a chance to persist useful context to MEMORY.md
+        before it is killed. Best-effort: if the prompt times out or the
+        process is unresponsive, the caller proceeds with shutdown anyway.
+
+        Args:
+            timeout: Maximum seconds to wait for the save operation.
+                Defaults to 30s for idle eviction/graceful shutdown.
+                Use a shorter value (e.g., 10s) for user-visible paths
+                like session recycle where latency matters.
+
+        Prerequisites:
+          - self._proc is alive and responsive
+          - No other interaction is in flight (caller holds exclusive pipe access)
+          - self._fresh_session is False (at least one real message was processed)
+        """
+        if self._fresh_session or not self.is_alive:
+            return
+
+        if self._proc is None or self._proc.stdin is None or self._proc.stdout is None:
+            return
+
+        save_msg = (
+            "You are about to be shut down. Save anything worth remembering "
+            "from this session to your memory file. Only save genuinely "
+            "useful information - user preferences, personal facts, decisions, "
+            "corrections, or important context. Do not save session-specific "
+            "details like current task progress or temporary debugging state."
+        )
+
+        content = [{"type": "text", "text": save_msg}]
+        msg = (
+            json.dumps(
+                {
+                    "type": "user",
+                    "message": {
+                        "role": "user",
+                        "content": content,
+                    },
+                }
+            )
+            + "\n"
+        )
+
+        try:
+            self._proc.stdin.write(msg.encode())
+            await self._proc.stdin.drain()
+        except (OSError, RuntimeError):
+            # OSError: pipe broken. RuntimeError: transport closed during
+            # drain(). Either way, the process is dying. Nothing to save.
+            log.debug("Save prompt write failed; process already dying")
+            return
+
+        # Read and discard response lines until we see the result event or
+        # timeout. The timeout covers the entire save operation (read current
+        # memory, decide what to save, write file, respond).
+        try:
+            deadline = time.monotonic() + timeout
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    log.warning("Save prompt timed out; proceeding with shutdown")
+                    break
+                try:
+                    line = await asyncio.wait_for(self._proc.stdout.readline(), timeout=remaining)
+                except TimeoutError:
+                    log.warning("Save prompt timed out; proceeding with shutdown")
+                    break
+                if not line:
+                    # EOF - process died during save
+                    break
+                # Parse the line to check for completion. The inner Claude
+                # responds via stream-json, so look for "result" type events.
+                try:
+                    event = json.loads(line)
+                    if event.get("type") == "result":
+                        # Final event - save interaction complete
+                        log.info("Save prompt completed successfully")
+                        break
+                except (json.JSONDecodeError, ValueError):
+                    # Non-JSON line (stderr bleed, etc.) - skip
+                    continue
+        except Exception:
+            # Any error reading the response - log and move on.
+            # The subprocess will be killed momentarily regardless.
+            log.debug("Save prompt response read failed; proceeding with shutdown")
+
     def _get_workspace_system_prompt(self) -> str | None:
         """
         Get the system prompt for the current workspace config.
@@ -844,6 +936,10 @@ class PersistentClaude:
         _send_signal() handles already-dead processes via OSError instead.
         """
         if self._proc:
+            # Give the inner Claude a chance to save context before dying.
+            # Best-effort: timeout or failure skips silently.
+            await self._save_prompt()
+
             saved_pgid = self._pgid
 
             self._send_signal(signal.SIGTERM)

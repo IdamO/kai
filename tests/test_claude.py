@@ -1598,6 +1598,296 @@ class TestShutdown:
         assert claude._pgid is None
 
 
+# ── _save_prompt ─────────────────────────────────────────────────────
+
+
+class TestSavePrompt:
+    @pytest.mark.asyncio
+    async def test_sends_save_message_to_stdin(self):
+        """_save_prompt writes a stream-json message to stdin."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+        # Simulate a result event response
+        result_event = json.dumps({"type": "result"}).encode() + b"\n"
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdout.readline = AsyncMock(return_value=result_event)
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        await claude._save_prompt()
+
+        # Verify stdin was written to with a stream-json user message
+        written = mock_proc.stdin.write.call_args[0][0]
+        msg = json.loads(written.decode())
+        assert msg["type"] == "user"
+        assert msg["message"]["role"] == "user"
+        assert "shut down" in msg["message"]["content"][0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_skips_fresh_session(self):
+        """_save_prompt returns immediately for fresh sessions."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        claude._proc = mock_proc
+        claude._fresh_session = True
+
+        await claude._save_prompt()
+
+        # No stdin write should have occurred
+        mock_proc.stdin.write.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skips_dead_process(self):
+        """_save_prompt returns immediately when process is not alive."""
+        claude = _make_claude()
+        claude._proc = None
+        claude._fresh_session = False
+
+        # Should not raise
+        await claude._save_prompt()
+
+    @pytest.mark.asyncio
+    async def test_handles_stdin_write_failure(self):
+        """_save_prompt handles a broken pipe gracefully."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock(side_effect=OSError("broken pipe"))
+        mock_proc.stdout = AsyncMock()
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        # Should not raise
+        await claude._save_prompt()
+
+    @pytest.mark.asyncio
+    async def test_handles_drain_runtime_error(self):
+        """_save_prompt handles RuntimeError from drain() gracefully."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock(side_effect=RuntimeError("transport closed"))
+        mock_proc.stdout = AsyncMock()
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        # Should not raise
+        await claude._save_prompt()
+
+    @pytest.mark.asyncio
+    async def test_stops_on_result_event(self):
+        """_save_prompt stops reading when it sees a result event."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+
+        # Send a system event, then a result event
+        responses = [
+            json.dumps({"type": "system"}).encode() + b"\n",
+            json.dumps({"type": "result"}).encode() + b"\n",
+        ]
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdout.readline = AsyncMock(side_effect=responses)
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        await claude._save_prompt()
+
+        # readline was called twice (system event + result event)
+        assert mock_proc.stdout.readline.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_stops_on_eof(self):
+        """_save_prompt stops reading on EOF (process died)."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdout.readline = AsyncMock(return_value=b"")
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        await claude._save_prompt()
+
+    @pytest.mark.asyncio
+    async def test_stops_on_deadline_expired(self):
+        """_save_prompt exits when the deadline has elapsed."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+        mock_proc.stdout = AsyncMock()
+        # readline should never be called if the deadline is already past
+        mock_proc.stdout.readline = AsyncMock(side_effect=AssertionError("should not be called"))
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        # Use timeout=0 so deadline expires immediately after write
+        await claude._save_prompt(timeout=0)
+
+    @pytest.mark.asyncio
+    async def test_stops_on_readline_timeout(self):
+        """_save_prompt handles TimeoutError from readline."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdout.readline = AsyncMock(side_effect=TimeoutError())
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        await claude._save_prompt(timeout=5)
+
+    @pytest.mark.asyncio
+    async def test_handles_json_parse_error(self):
+        """_save_prompt handles non-JSON response lines."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+
+        # Non-JSON line followed by result event
+        responses = [
+            b"not json at all\n",
+            json.dumps({"type": "result"}).encode() + b"\n",
+        ]
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdout.readline = AsyncMock(side_effect=responses)
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        await claude._save_prompt()
+
+        # Both lines were read (non-JSON skipped, result stopped the loop)
+        assert mock_proc.stdout.readline.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_handles_unexpected_exception(self):
+        """_save_prompt handles unexpected exceptions during read."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdout.readline = AsyncMock(side_effect=RuntimeError("unexpected"))
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        # Should not raise
+        await claude._save_prompt()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_calls_save_prompt(self):
+        """shutdown() calls _save_prompt() before SIGTERM."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.send_signal = MagicMock()
+        mock_proc.wait = AsyncMock()
+        claude._proc = mock_proc
+
+        call_order: list[str] = []
+
+        async def tracking_save():
+            call_order.append("save_prompt")
+
+        with (
+            patch.object(claude, "_save_prompt", side_effect=tracking_save),
+            patch.object(claude, "_send_signal", side_effect=lambda s: call_order.append(f"signal_{s}")),
+        ):
+            await claude.shutdown()
+
+        assert call_order[0] == "save_prompt"
+        assert "signal_15" in call_order  # SIGTERM = 15
+
+    @pytest.mark.asyncio
+    async def test_force_kill_does_not_call_save_prompt(self):
+        """force_kill() does NOT call _save_prompt()."""
+        claude = _make_claude()
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.pid = 12345
+        claude._proc = mock_proc
+
+        with patch.object(claude, "_save_prompt", new_callable=AsyncMock) as mock_save:
+            claude.force_kill()
+
+        mock_save.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_session_recycle_calls_save_prompt_before_kill(self):
+        """Session recycle calls _save_prompt(timeout=10) before _kill()."""
+        claude = _make_claude()
+        claude.max_session_hours = 0.001  # Tiny value so _should_recycle is True
+        claude._session_started_at = 0  # Long ago
+
+        # Mock a running process
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdout.readline = AsyncMock(return_value=json.dumps({"type": "result"}).encode() + b"\n")
+        claude._proc = mock_proc
+        claude._fresh_session = False
+
+        call_order: list[str] = []
+
+        async def tracking_save(timeout=30):
+            call_order.append(f"save_prompt_timeout={timeout}")
+            # Don't actually send a save prompt
+            return
+
+        async def tracking_kill():
+            call_order.append("kill")
+
+        with (
+            patch.object(claude, "_save_prompt", side_effect=tracking_save),
+            patch.object(claude, "_kill", side_effect=tracking_kill),
+        ):
+            # Only need to verify the recycle path fires and calls
+            # save_prompt then kill in order. We don't need to run
+            # the full _send_locked - just trigger the recycle check.
+            # Since _should_recycle returns True, _send_locked will
+            # call save_prompt then kill before _ensure_started.
+            # Catch the StopAsyncIteration when the generator can't
+            # proceed without a real process.
+            try:
+                async for _ in claude._send_locked("test", chat_id=123):
+                    pass
+            except (StopAsyncIteration, AttributeError, TypeError):
+                pass  # Expected - no real process after kill
+
+        assert call_order[0] == "save_prompt_timeout=10"
+        assert call_order[1] == "kill"
+
+
 # ── change_workspace ─────────────────────────────────────────────────
 
 
