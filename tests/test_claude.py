@@ -14,6 +14,8 @@ Covers:
 
 import asyncio
 import json
+import os
+import pwd
 import signal
 import time
 from pathlib import Path
@@ -169,6 +171,84 @@ class TestCommandConstruction:
             await claude._ensure_started()
 
             args = mock_exec.call_args
+            assert args[1].get("start_new_session") is True
+
+    @pytest.mark.asyncio
+    async def test_self_sudo_skipped(self, caplog):
+        """When claude_user matches the current process user, sudo is skipped."""
+        try:
+            current_user = pwd.getpwuid(os.getuid()).pw_name
+        except KeyError:
+            pytest.skip("UID has no passwd entry; self-sudo-skip path not reachable")
+        claude = _make_claude(claude_user=current_user)
+
+        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
+            mock_proc = MagicMock()
+            mock_proc.returncode = None
+            mock_proc.stderr = AsyncMock()
+            mock_exec.return_value = mock_proc
+
+            with caplog.at_level("WARNING", logger="kai.claude"):
+                await claude._ensure_started()
+
+            args = mock_exec.call_args
+            cmd = args[0]
+            # Command should NOT start with sudo
+            assert cmd[0] == "claude"
+            assert "sudo" not in cmd
+            # No process group isolation
+            assert args[1].get("start_new_session") is False
+            assert claude._pgid is None
+            # Warning was logged
+            assert "skipping sudo" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_different_user_still_uses_sudo(self):
+        """When claude_user is a different user, sudo is still used."""
+        claude = _make_claude(claude_user="some_other_user")
+
+        # Patch pwd.getpwuid to return a fixed value so the test doesn't
+        # depend on the real system user being different from "some_other_user".
+        mock_pw = MagicMock(pw_name="kai")
+        with (
+            patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec,
+            patch("kai.claude.pwd.getpwuid", return_value=mock_pw),
+        ):
+            mock_proc = MagicMock()
+            mock_proc.returncode = None
+            mock_proc.stderr = AsyncMock()
+            mock_exec.return_value = mock_proc
+
+            await claude._ensure_started()
+
+            args = mock_exec.call_args
+            cmd = args[0]
+            assert cmd[0] == "sudo"
+            assert cmd[2] == "some_other_user"
+            assert args[1].get("start_new_session") is True
+
+    @pytest.mark.asyncio
+    async def test_pwd_keyerror_falls_through_to_sudo(self):
+        """When pwd.getpwuid raises KeyError (unmapped UID), sudo is used."""
+        claude = _make_claude(claude_user="container_user")
+
+        # Simulate a container environment where the UID has no passwd entry.
+        with (
+            patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec,
+            patch("kai.claude.pwd.getpwuid", side_effect=KeyError("uid not found")),
+        ):
+            mock_proc = MagicMock()
+            mock_proc.returncode = None
+            mock_proc.stderr = AsyncMock()
+            mock_exec.return_value = mock_proc
+
+            await claude._ensure_started()
+
+            args = mock_exec.call_args
+            cmd = args[0]
+            # Should still wrap with sudo since we can't determine the user.
+            assert cmd[0] == "sudo"
+            assert cmd[2] == "container_user"
             assert args[1].get("start_new_session") is True
 
 

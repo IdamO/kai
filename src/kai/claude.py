@@ -29,6 +29,7 @@ import asyncio
 import json
 import logging
 import os
+import pwd
 import signal
 import time
 from collections.abc import AsyncIterator
@@ -210,15 +211,33 @@ class PersistentClaude:
         # When running as a different user, spawn via sudo -u.
         # The subprocess runs with the target user's UID, home directory,
         # and environment - completely isolated from the bot user.
-        if self.claude_user:
-            cmd = ["sudo", "-u", self.claude_user, "--"] + claude_cmd
+        # Skip sudo when the target user is the same as the bot user -
+        # self-sudo fails (sudoers disallows it) and serves no purpose.
+        effective_claude_user = self.claude_user
+        if effective_claude_user:
+            # getpwuid raises KeyError when the UID has no passwd entry
+            # (e.g., containers with --user <uid>). Treat that as "unknown
+            # user" and fall through to the sudo path.
+            try:
+                current_user = pwd.getpwuid(os.getuid()).pw_name
+            except KeyError:
+                current_user = None
+            if effective_claude_user == current_user:
+                log.warning(
+                    "claude_user %r matches the bot process user; skipping sudo (no isolation)",
+                    effective_claude_user,
+                )
+                effective_claude_user = None
+
+        if effective_claude_user:
+            cmd = ["sudo", "-u", effective_claude_user, "--"] + claude_cmd
         else:
             cmd = claude_cmd
 
         log.info(
             "Starting persistent Claude process (model=%s, user=%s)",
             self.model,
-            self.claude_user or "(same as bot)",
+            effective_claude_user or "(same as bot)",
         )
 
         # Build the subprocess environment. Merge order:
@@ -247,7 +266,7 @@ class PersistentClaude:
             # When spawned via sudo, start in a new process group so we can
             # kill the entire tree (sudo + claude) via os.killpg(). Without
             # this, killing sudo may orphan the claude process.
-            start_new_session=bool(self.claude_user),
+            start_new_session=bool(effective_claude_user),
         )
         self._session_id = None
         self._fresh_session = True
@@ -258,7 +277,7 @@ class PersistentClaude:
         # with PGID == PID (session leader). Save it now because os.getpgid()
         # fails after the process exits, but os.killpg() works as long as any
         # group member is still alive (i.e., the actual claude process).
-        if self.claude_user:
+        if effective_claude_user:
             self._pgid = self._proc.pid  # PGID == PID for session leaders
         else:
             self._pgid = None
