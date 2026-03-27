@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import pwd
+import re
 import secrets
 import shutil
 import subprocess
@@ -34,6 +35,8 @@ import tempfile
 import textwrap
 import time
 from pathlib import Path
+
+import yaml
 
 from kai.config import PROJECT_ROOT, VALID_MODELS
 
@@ -148,6 +151,34 @@ def _validate_user_ids(value: str) -> bool:
         return False
 
 
+def _validate_telegram_id(value: str) -> bool:
+    """Check that a string is a single positive integer (Telegram user ID)."""
+    try:
+        return int(value.strip()) > 0
+    except (ValueError, AttributeError):
+        return False
+
+
+# Letters, digits, spaces, hyphens, underscores. Prevents YAML structural
+# characters (colons, hashes) in names; _yaml_scalar() separately handles
+# YAML 1.1 boolean keyword quoting.
+_DISPLAY_NAME_RE = re.compile(r"^[a-zA-Z0-9 _-]+$")
+
+
+def _validate_display_name(value: str) -> bool:
+    """Check that a display name contains only safe characters for YAML output."""
+    return bool(value.strip()) and _DISPLAY_NAME_RE.match(value.strip()) is not None
+
+
+# OS usernames: alphanumeric, dots, hyphens, underscores.
+_OS_USER_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
+
+
+def _validate_os_user(value: str) -> bool:
+    """Check that a string contains only valid OS username characters."""
+    return bool(value.strip()) and _OS_USER_RE.match(value.strip()) is not None
+
+
 def _validate_port(value: str) -> bool:
     """Check that a string is a valid port number (1-65535)."""
     try:
@@ -254,15 +285,108 @@ def _cmd_config() -> None:
         required=True,
     )
 
-    while True:
-        user_ids = _prompt(
-            "Allowed user IDs (comma-separated)",
-            existing_env.get("ALLOWED_USER_IDS", ""),
-            required=True,
+    # -- User setup --
+    # Check for an existing users.yaml. Try local project root first,
+    # then the deployed copy at /etc/kai/ (for protected installs).
+    # If either exists, skip the user prompt to avoid overwriting
+    # manual edits.
+    print("-- User setup --")
+    users_yaml_path = PROJECT_ROOT / "users.yaml"
+    users_yaml_exists = users_yaml_path.exists()
+
+    if not users_yaml_exists:
+        # /etc/kai/users.yaml is mode 0600 owned by root. Whether
+        # Path.exists() works depends on the parent directory permissions;
+        # it may return True even if the file isn't readable. Either way,
+        # the worst case is re-prompting and the next 'make install'
+        # overwrites the deployed copy with the new one.
+        etc_users = Path("/etc/kai/users.yaml")
+        if etc_users.exists():
+            users_yaml_exists = True
+
+    # Track whether advanced mode set os_user, so we can skip the
+    # CLAUDE_USER prompt later (section 8). Needs to be in scope
+    # regardless of which branch we take.
+    admin_os_user: str | None = None
+
+    if users_yaml_exists:
+        # Summarize the existing config without modifying it.
+        # Note: if only the /etc/kai/ copy exists (not the local one),
+        # users_yaml_path still points to PROJECT_ROOT / "users.yaml"
+        # which doesn't exist. Guard with .exists() so we skip the
+        # summary gracefully rather than relying on the bare except.
+        summary = ""
+        if users_yaml_path.exists():
+            try:
+                data = yaml.safe_load(users_yaml_path.read_text())
+                if isinstance(data, dict) and isinstance(data.get("users"), list):
+                    entries = data["users"]
+                    n_users = len(entries)
+                    n_admins = sum(
+                        1 for e in entries if isinstance(e, dict) and str(e.get("role", "")).lower() == "admin"
+                    )
+                    summary = (
+                        f" ({n_users} user{'s' if n_users != 1 else ''}, "
+                        f"{n_admins} admin{'s' if n_admins != 1 else ''})"
+                    )
+            except Exception:
+                pass  # Malformed YAML - skip the summary
+        print(f"  users.yaml already configured{summary}.")
+        print("  To modify users, edit users.yaml directly or use Telegram commands.")
+    else:
+        while True:
+            admin_telegram_id = _prompt(
+                "Admin Telegram ID",
+                "",
+                required=True,
+            )
+            admin_telegram_id = admin_telegram_id.strip()
+            if _validate_telegram_id(admin_telegram_id):
+                break
+            print("  Must be a positive integer. Message @userinfobot on Telegram to find yours.")
+
+        while True:
+            admin_name = _prompt("Admin display name", "admin", required=True).strip()
+            if _validate_display_name(admin_name):
+                break
+            print("  Name may only contain letters, numbers, spaces, hyphens, and underscores.")
+
+        # Advanced options: os_user and home_workspace.
+        advanced = _prompt_bool("Configure advanced user options", False)
+        admin_home_workspace: str | None = None
+
+        if advanced:
+            # Default os_user to CLAUDE_USER if previously set, else $USER.
+            # Note: on machines where the service user and the current user
+            # are the same (e.g., "kai" on the Mac mini), accepting the
+            # default means os_user matches the bot process user. This is
+            # fine - PR #192 handles the self-sudo skip for this case.
+            default_os_user = existing_env.get("CLAUDE_USER", "") or os.environ.get("USER", "")
+            while True:
+                admin_os_user = _prompt("OS user for subprocess isolation", default_os_user).strip() or None
+                if admin_os_user is None or _validate_os_user(admin_os_user):
+                    break
+                print("  Username may only contain letters, numbers, dots, hyphens, and underscores.")
+
+            # Default home_workspace to PROJECT_ROOT.
+            default_home = str(PROJECT_ROOT)
+            admin_home_workspace = _prompt("Home workspace", default_home) or None
+            if admin_home_workspace:
+                # Resolve to absolute path for consistency with config.py parsing.
+                admin_home_workspace = str(Path(admin_home_workspace).expanduser().resolve())
+
+        # Write users.yaml to project root. _apply_secrets() copies it
+        # to /etc/kai/users.yaml during 'make install'.
+        users_yaml_content = _generate_users_yaml(
+            admin_telegram_id,
+            admin_name,
+            os_user=admin_os_user,
+            home_workspace=admin_home_workspace,
         )
-        if _validate_user_ids(user_ids):
-            break
-        print("  Must be comma-separated positive integers.")
+        users_yaml_path.write_text(users_yaml_content)
+        os.chmod(users_yaml_path, 0o600)
+        print(f"  Generated {users_yaml_path}")
+    print()
 
     transport = _prompt_choice(
         "Telegram transport",
@@ -398,10 +522,16 @@ def _cmd_config() -> None:
         existing_env.get("TTS_ENABLED", "false").lower() in ("1", "true", "yes"),
     )
 
-    claude_user = _prompt(
-        "Claude subprocess user (optional, for process isolation)",
-        existing_env.get("CLAUDE_USER", ""),
-    )
+    # Skip if the user already set os_user via advanced user options.
+    # CLAUDE_USER is the global fallback; os_user in users.yaml takes
+    # precedence per-user at runtime.
+    if admin_os_user:
+        claude_user = ""
+    else:
+        claude_user = _prompt(
+            "Claude subprocess user (optional, for process isolation)",
+            existing_env.get("CLAUDE_USER", ""),
+        )
     print()
 
     # -- External services --
@@ -415,7 +545,6 @@ def _cmd_config() -> None:
     # Build the env dict (only include non-empty values)
     env: dict[str, str] = {
         "TELEGRAM_BOT_TOKEN": bot_token,
-        "ALLOWED_USER_IDS": user_ids,
         "CLAUDE_MODEL": model,
         "CLAUDE_TIMEOUT_SECONDS": timeout,
         "CLAUDE_MAX_BUDGET_USD": budget,
@@ -576,6 +705,61 @@ def _generate_env_file(env: dict[str, str]) -> str:
         escaped = value.replace("\\", "\\\\").replace('"', '\\"')
         lines.append(f'{key}="{escaped}"')
     lines.append("")
+    return "\n".join(lines)
+
+
+def _generate_users_yaml(
+    telegram_id: str,
+    name: str,
+    os_user: str | None = None,
+    home_workspace: str | None = None,
+) -> str:
+    """
+    Generate a minimal users.yaml with a single admin entry.
+
+    Uses string formatting rather than yaml.dump() to keep the output
+    deterministic and human-readable (consistent indentation, field order,
+    comment header). All embedded values are pre-validated: telegram_id is
+    a positive integer string, name passes _validate_display_name(),
+    os_user passes _validate_os_user(), and home_workspace is serialized
+    via yaml.dump() to handle arbitrary path characters safely.
+
+    Args:
+        telegram_id: The admin user's Telegram ID (validated positive int string).
+        name: Display name for the admin user.
+        os_user: Optional OS account for subprocess isolation.
+        home_workspace: Optional home workspace path (absolute).
+
+    Returns:
+        The YAML file contents as a string.
+    """
+
+    # yaml.dump() appends a document end marker ("\n...\n") after
+    # plain scalars (e.g., "alice\n...\n") and just "\n" after quoted
+    # ones (e.g., "'yes'\n"). Strip the marker and trailing newlines
+    # so we get a bare scalar for embedding in a larger document.
+    # The removesuffix("...") is safe because the marker is always
+    # on its own line, separated by "\n" from any "..." in the value.
+    def _yaml_scalar(value: str) -> str:
+        return yaml.dump(value, default_flow_style=True).rstrip("\n").removesuffix("...").rstrip("\n")
+
+    lines = [
+        "# Kai user configuration - generated by 'python -m kai install config'",
+        "# See README (Multi-User section) for all available fields.",
+        "",
+        "users:",
+        f"  - telegram_id: {telegram_id}",
+        # Use yaml.dump for string scalars to handle YAML 1.1 boolean
+        # keywords (yes/no/true/false/on/off) and null, which would
+        # round-trip as non-string types through yaml.safe_load.
+        f"    name: {_yaml_scalar(name)}",
+        "    role: admin",
+    ]
+    if os_user:
+        lines.append(f"    os_user: {_yaml_scalar(os_user)}")
+    if home_workspace:
+        lines.append(f"    home_workspace: {_yaml_scalar(home_workspace)}")
+    lines.append("")  # trailing newline
     return "\n".join(lines)
 
 
