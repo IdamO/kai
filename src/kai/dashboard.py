@@ -169,6 +169,12 @@ function addEvent(ev) {
         updateStats();
         return;
 
+    } else if (ev.type === 'mid_stream') {
+        line.className = 'line text';
+        line.style.borderLeft = '3px solid #f0883e';
+        line.innerHTML = time + '<span class="label" style="color:#f0883e">MSG&gt;&gt; </span><span class="body">' + esc(d.text || '') + '</span>';
+        setDot('active'); lastAct = Date.now();
+
     } else if (ev.type === 'raw') {
         let rtype = d.type || 'raw';
         if (rtype === 'user' && d.preview) {

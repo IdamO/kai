@@ -4,7 +4,8 @@ Per-chat concurrency primitives for serializing message handling.
 Provides functionality to:
 1. Allocate per-chat asyncio locks so only one message is processed at a time
 2. Allocate per-chat stop events so /stop can interrupt in-flight responses
-3. Bound memory usage by evicting the oldest entries when limits are reached
+3. Allocate per-chat message queues for mid-stream message injection
+4. Bound memory usage by evicting the oldest entries when limits are reached
 
 Both lock and stop-event pools are bounded dicts keyed by chat_id. The eviction
 limit (_MAX_LOCKS) is generous for a single-user bot but prevents unbounded
@@ -22,6 +23,10 @@ _chat_locks: dict[int, asyncio.Lock] = {}
 
 # chat_id → asyncio.Event: set when the user sends /stop to cancel a response
 _stop_events: dict[int, asyncio.Event] = {}
+
+# chat_id → asyncio.Queue: messages that arrived while a response is streaming.
+# The streaming loop checks this queue between chunks and injects them mid-stream.
+_incoming_queues: dict[int, asyncio.Queue[str]] = {}
 
 
 def get_lock(chat_id: int) -> asyncio.Lock:
@@ -82,3 +87,31 @@ def get_stop_event(chat_id: int) -> asyncio.Event:
     event = asyncio.Event()
     _stop_events[chat_id] = event
     return event
+
+
+def get_incoming_queue(chat_id: int) -> asyncio.Queue[str]:
+    """
+    Get or create a message queue for mid-stream injection.
+
+    When a new message arrives while Claude is streaming a response,
+    the message handler pushes it here. The streaming loop in bot.py
+    checks this queue between chunks and injects the message into
+    the Claude subprocess.
+
+    Args:
+        chat_id: Telegram chat ID.
+
+    Returns:
+        An asyncio.Queue unique to this chat_id (created on first access).
+    """
+    queue = _incoming_queues.get(chat_id)
+    if queue is not None:
+        return queue
+    if len(_incoming_queues) >= _MAX_LOCKS:
+        for candidate in list(_incoming_queues):
+            if _incoming_queues[candidate].empty():
+                del _incoming_queues[candidate]
+                break
+    queue: asyncio.Queue[str] = asyncio.Queue()
+    _incoming_queues[chat_id] = queue
+    return queue

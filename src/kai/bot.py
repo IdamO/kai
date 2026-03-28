@@ -52,11 +52,11 @@ from telegram.ext import (
     filters,
 )
 
-from kai import services, sessions, webhook
+from kai import events, services, sessions, webhook
 from kai.claude import PersistentClaude
 from kai.config import DATA_DIR, Config
 from kai.history import log_message
-from kai.locks import get_lock, get_stop_event
+from kai.locks import get_lock, get_incoming_queue, get_stop_event
 from kai.transcribe import TranscriptionError, transcribe_voice
 from kai.tts import DEFAULT_VOICE, VOICES, TTSError, synthesize_speech
 
@@ -1464,16 +1464,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     chat_id = _chat_id(update)
     prompt = update.message.text
+    log.info("Message received from chat %s: %s", chat_id, prompt[:200])
     log_message(direction="user", chat_id=chat_id, text=prompt)
+
+    # Persist immediately -- survives crashes, restarts, compaction.
+    msg_id = await sessions.enqueue_message(chat_id, prompt)
+
+    # If lock is held (Claude is streaming), inject mid-stream and return.
+    # The message is already persisted. If injection fires, Claude sees it
+    # immediately. If it doesn't (cron path), the drain on next restart
+    # picks it up. Either way, no duplicate processing.
+    lock = get_lock(chat_id)
+    if lock.locked():
+        log.info("Lock held for chat %s -- queueing message %d for mid-stream injection", chat_id, msg_id)
+        get_incoming_queue(chat_id).put_nowait(prompt)
+        await sessions.mark_message_processed(msg_id)
+        return
+
     claude = _get_claude(context)
     model = claude.model
 
-    async with get_lock(chat_id):
+    async with lock:
+        log.info("Lock acquired for chat %s, starting Claude response", chat_id)
+        await sessions.mark_message_processed(msg_id)
         _set_responding(chat_id)
         try:
             await _handle_response(update, context, chat_id, prompt, claude, model)
         finally:
             _clear_responding()
+            log.info("Response handling complete for chat %s", chat_id)
 
 
 # ── Streaming response handler ───────────────────────────────────────
@@ -1550,6 +1569,7 @@ async def _handle_response(
 
         # Stream events from Claude — typing indicator shows activity,
         # final response is sent as a new message (no live editing).
+        incoming_queue = get_incoming_queue(chat_id)
         async for event in claude.send(prompt):
             # Check for /stop between stream chunks
             if stop_event.is_set():
@@ -1557,6 +1577,22 @@ async def _handle_response(
                 stopped_by_user = True
                 final_response = None
                 break
+
+            # Check for mid-stream messages from the user
+            while not incoming_queue.empty():
+                try:
+                    injected_text = incoming_queue.get_nowait()
+                    log.info("Injecting mid-stream message for chat %s: %s...", chat_id, injected_text[:100])
+                    events.push("mid_stream", {"chat_id": chat_id, "text": injected_text[:500]})
+                    injection = (
+                        "[MID-STREAM MESSAGE from user — they sent this while you were working]\n"
+                        f"{injected_text}\n"
+                        "[If this is relevant to your current task, incorporate it now. "
+                        "If unrelated, acknowledge briefly and add it to your task queue for after you finish.]"
+                    )
+                    await claude.inject_message(injection)
+                except Exception:
+                    log.exception("Failed to inject mid-stream message")
 
             if event.done:
                 final_response = event.response
@@ -1574,14 +1610,26 @@ async def _handle_response(
     # Handle error cases. Skip the error message if /stop was used.
     if final_response is None:
         if not stopped_by_user:
+            log.warning("Claude returned no response for chat %s", chat_id)
             await update.message.reply_text("Error: No response from Claude")
         else:
+            log.info("Response stopped by user for chat %s", chat_id)
             await update.message.reply_text("_(stopped)_", parse_mode=ParseMode.MARKDOWN)
         return
 
     if not final_response.success:
+        log.error("Claude error for chat %s: %s", chat_id, final_response.error)
         await update.message.reply_text(f"Error: {final_response.error}")
         return
+
+    log.info(
+        "Claude response complete for chat %s (len=%d, cost=$%.4f, duration=%dms, session=%s)",
+        chat_id,
+        len(final_response.text),
+        final_response.cost_usd,
+        final_response.duration_ms,
+        final_response.session_id or "?",
+    )
 
     # Persist session info for /stats (cost accumulates across interactions)
     if final_response.session_id:

@@ -99,6 +99,15 @@ async def init_db(db_path: Path) -> None:
             last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    await _get_db().execute("""
+        CREATE TABLE IF NOT EXISTS pending_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id INTEGER NOT NULL,
+            text TEXT NOT NULL,
+            received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            processed INTEGER DEFAULT 0
+        )
+    """)
     await _get_db().commit()
 
 
@@ -384,6 +393,57 @@ async def get_workspace_history(limit: int = 10) -> list[dict]:
 async def delete_workspace_history(path: str) -> None:
     """Remove a workspace path from history. Used when a workspace directory no longer exists."""
     await _get_db().execute("DELETE FROM workspace_history WHERE path = ?", (path,))
+    await _get_db().commit()
+
+
+# ── Pending messages (persistent queue for crash/compaction safety) ──
+
+
+async def enqueue_message(chat_id: int, text: str) -> int:
+    """Persist an incoming message immediately on receipt. Returns the row ID."""
+    cursor = await _get_db().execute(
+        "INSERT INTO pending_messages (chat_id, text) VALUES (?, ?)",
+        (chat_id, text),
+    )
+    await _get_db().commit()
+    if cursor.lastrowid is None:
+        raise RuntimeError("INSERT did not return a row ID")
+    return cursor.lastrowid
+
+
+async def get_pending_messages(chat_id: int) -> list[dict]:
+    """Get all unprocessed messages for a chat, ordered by receipt time."""
+    async with _get_db().execute(
+        "SELECT id, text, received_at FROM pending_messages WHERE chat_id = ? AND processed = 0 ORDER BY id",
+        (chat_id,),
+    ) as cursor:
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+async def mark_message_processed(message_id: int) -> None:
+    """Mark a single message as processed."""
+    await _get_db().execute(
+        "UPDATE pending_messages SET processed = 1 WHERE id = ?", (message_id,)
+    )
+    await _get_db().commit()
+
+
+async def mark_all_processed(chat_id: int) -> None:
+    """Mark all pending messages for a chat as processed."""
+    await _get_db().execute(
+        "UPDATE pending_messages SET processed = 1 WHERE chat_id = ? AND processed = 0",
+        (chat_id,),
+    )
+    await _get_db().commit()
+
+
+async def cleanup_old_messages(days: int = 7) -> None:
+    """Delete processed messages older than N days to prevent bloat."""
+    await _get_db().execute(
+        "DELETE FROM pending_messages WHERE processed = 1 AND received_at < datetime('now', ?)",
+        (f"-{days} days",),
+    )
     await _get_db().commit()
 
 
