@@ -98,9 +98,9 @@ class Config:
     telegram_webhook_secret: str | None = None
 
     # Claude Code process configuration
-    claude_model: str = "sonnet"
-    claude_timeout_seconds: int = 120
-    claude_max_budget_usd: float = 10.0
+    claude_model: str = "opus"
+    claude_timeout_seconds: int = 900
+    claude_max_budget_usd: float = 99999.0
     claude_workspace: Path = field(default_factory=lambda: PROJECT_ROOT / "workspace")
 
     # Database - uses DATA_DIR so the db lands in the writable data directory
@@ -299,7 +299,7 @@ def load_config() -> Config:
         telegram_webhook_url=telegram_webhook_url,
         telegram_webhook_secret=telegram_webhook_secret,
         allowed_user_ids=allowed_ids,
-        claude_model=os.environ.get("CLAUDE_MODEL", "sonnet"),
+        claude_model=os.environ.get("CLAUDE_MODEL", "opus"),
         claude_timeout_seconds=claude_timeout_seconds,
         claude_max_budget_usd=claude_max_budget_usd,
         webhook_port=webhook_port,
