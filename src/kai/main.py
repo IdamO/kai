@@ -33,16 +33,26 @@ The shutdown sequence (in the finally block) reverses this order:
 """
 
 import asyncio
+import fcntl
 import logging
+import os
+import signal
+import sys
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 from telegram import BotCommand
-from telegram.error import NetworkError
+from telegram.error import Conflict, NetworkError, TelegramError
 
 from kai import cron, dashboard, services, sessions, webhook
 from kai.bot import _is_workspace_allowed, create_bot
 from kai.config import DATA_DIR, PROJECT_ROOT, _read_protected_file, load_config
+
+# PID lock file — prevents two kai instances from running simultaneously.
+# This is the structural fix for the Telegram Conflict error: even if launchd
+# and the watchdog race, only one process can hold this lock.
+_PID_LOCK_PATH = DATA_DIR / "kai.pid"
+_pid_lock_file = None  # kept open for process lifetime
 
 
 def setup_logging() -> None:
@@ -87,6 +97,29 @@ def setup_logging() -> None:
     logging.getLogger("apscheduler.executors.default").setLevel(logging.WARNING)
 
 
+def _acquire_pid_lock() -> bool:
+    """
+    Acquire an exclusive PID lock to prevent duplicate instances.
+
+    Uses fcntl.flock (not a PID file check) so the lock is automatically
+    released if the process crashes, is killed, or exits — no stale lock
+    files to clean up. Returns True if lock acquired, False if another
+    instance holds it.
+    """
+    global _pid_lock_file
+    _PID_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _pid_lock_file = open(_PID_LOCK_PATH, "w")
+    try:
+        fcntl.flock(_pid_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _pid_lock_file.write(str(os.getpid()))
+        _pid_lock_file.flush()
+        return True
+    except OSError:
+        _pid_lock_file.close()
+        _pid_lock_file = None
+        return False
+
+
 def main() -> None:
     """
     Top-level entry point for the Kai bot.
@@ -98,8 +131,24 @@ def main() -> None:
     """
     setup_logging()
 
+    # Log signal-based kills so we know WHY kai died (watchdog kickstart -k
+    # sends SIGTERM, then SIGKILL after grace period)
+    def _signal_handler(signum: int, _frame: object) -> None:
+        sig_name = signal.Signals(signum).name
+        logging.info("Kai received %s (signal %d) — shutting down", sig_name, signum)
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGHUP, _signal_handler)
+
+    # Acquire PID lock BEFORE doing anything else. If another instance
+    # is running, exit immediately — launchd will retry later.
+    if not _acquire_pid_lock():
+        logging.error("Another Kai instance is already running (lock held on %s). Exiting.", _PID_LOCK_PATH)
+        sys.exit(1)
+
     config = load_config()
-    logging.info("Kai starting (model=%s, users=%s)", config.claude_model, config.allowed_user_ids)
+    logging.info("Kai starting (model=%s, users=%s, pid=%d)", config.claude_model, config.allowed_user_ids, os.getpid())
 
     # Load external service definitions. In a protected installation, services.yaml
     # lives in /etc/kai/ (root-owned). Falls back to PROJECT_ROOT for development.
@@ -200,12 +249,78 @@ def main() -> None:
             # In polling mode, start the Updater's long-polling loop. PTB's
             # start_polling() automatically calls delete_webhook() first, which
             # cleans up any stale webhook from a previous webhook-mode run.
+            #
+            # Retry with backoff to survive the Telegram Conflict window: after
+            # a kill, the old polling session stays valid server-side for up to
+            # ~30s. Rather than crashing, we wait it out.
             if not use_webhook:
                 assert app.updater is not None
-                await app.updater.start_polling(
-                    allowed_updates=["message", "callback_query"],
-                )
-                logging.info("Polling started")
+
+                # Nuclear session cleanup before polling:
+                # 1. deleteWebhook(drop_pending_updates=True) tells Telegram to
+                #    discard any in-flight getUpdates and release the session.
+                # 2. bot.close() closes the local HTTP connection pool.
+                # 3. Short sleep lets Telegram's servers fully release.
+                # This replaces the old bot.close() + 12s sleep which was insufficient.
+                try:
+                    await app.bot.delete_webhook(drop_pending_updates=True)
+                    logging.info("Deleted webhook + dropped pending updates")
+                except Exception as e:
+                    logging.warning("delete_webhook failed: %s", e)
+                try:
+                    await app.bot.close()
+                    logging.info("Closed previous bot session")
+                except Exception as e:
+                    logging.warning("bot.close() failed (probably no prior session): %s", e)
+
+                # Short sleep after nuclear cleanup (3s is enough now that we've
+                # told Telegram to drop the session, vs 12s when we only closed locally)
+                await asyncio.sleep(3)
+
+                _conflict_count = 0
+
+                def _polling_error_callback(error: TelegramError) -> None:
+                    """Suppress Conflict errors during polling (self-healing noise).
+
+                    After rapid kill/restart cycles, Telegram's server-side connection
+                    takes up to ~30s to expire. PTB retries internally and recovers,
+                    but dumps full tracebacks to stderr on every retry. This callback
+                    intercepts those and logs at WARNING (first 3) then DEBUG to keep
+                    logs readable. Non-Conflict errors still get full ERROR logging.
+                    """
+                    nonlocal _conflict_count
+                    if isinstance(error, Conflict):
+                        _conflict_count += 1
+                        if _conflict_count <= 3:
+                            logging.warning(
+                                "Polling Conflict #%d (self-healing, PTB retries internally): %s",
+                                _conflict_count,
+                                error,
+                            )
+                        else:
+                            logging.debug("Polling Conflict #%d (suppressed): %s", _conflict_count, error)
+                    else:
+                        logging.error("Polling error: %s", error, exc_info=error)
+
+                for poll_attempt in range(1, 7):
+                    try:
+                        await app.updater.start_polling(
+                            allowed_updates=["message", "callback_query"],
+                            error_callback=_polling_error_callback,
+                        )
+                        logging.info("Polling started")
+                        break
+                    except Conflict:
+                        if poll_attempt == 6:
+                            raise
+                        wait = poll_attempt * 5
+                        logging.warning(
+                            "Telegram Conflict (previous session still active), "
+                            "retrying in %ds (attempt %d/6)",
+                            wait,
+                            poll_attempt,
+                        )
+                        await asyncio.sleep(wait)
 
             # Check if a previous response was interrupted by a crash/restart.
             # bot.py writes this flag file when it starts processing a message
@@ -227,6 +342,33 @@ def main() -> None:
                 logging.exception("Failed to send interrupted-response notice")
                 flag.unlink(missing_ok=True)
 
+            # Drain any messages that were persisted but never processed.
+            # Just notify the user and mark done. Simple, no duplication risk.
+            try:
+                async with sessions._get_db().execute(
+                    "SELECT DISTINCT chat_id FROM pending_messages WHERE processed = 0"
+                ) as cursor:
+                    chats_with_pending = [row[0] for row in await cursor.fetchall()]
+                for pending_chat_id in chats_with_pending:
+                    pending = await sessions.get_pending_messages(pending_chat_id)
+                    if pending:
+                        texts = [m["text"] for m in pending]
+                        lines = "\n".join(f"  {i+1}. {t[:120]}" for i, t in enumerate(texts))
+                        await app.bot.send_message(
+                            pending_chat_id,
+                            f"I restarted. {len(texts)} message(s) may not have been processed:\n{lines}\n\nResend if needed.",
+                        )
+                        await sessions.mark_all_processed(pending_chat_id)
+                        logging.info("Drained %d pending messages for chat %d", len(texts), pending_chat_id)
+            except Exception:
+                logging.exception("Failed to drain pending messages")
+
+            # Clean up old processed messages
+            try:
+                await sessions.cleanup_old_messages(days=7)
+            except Exception:
+                pass
+
             logging.info("Kai is running. Press Ctrl+C to stop.")
 
             # Polling health monitor: PTB's polling loop silently dies on DNS
@@ -244,6 +386,14 @@ def main() -> None:
                             task = app.updater._Updater__polling_task  # type: ignore[attr-defined]
                             if task is not None and task.done():
                                 exc = task.exception() if not task.cancelled() else None
+                                # Conflict errors are self-healing. PTB retries
+                                # internally. Do NOT force-exit on Conflict.
+                                if exc and "Conflict" in str(exc):
+                                    logging.warning(
+                                        "Polling task has Conflict error (self-healing, not force-exiting): %s",
+                                        exc,
+                                    )
+                                    continue
                                 logging.error(
                                     "Polling task died (exception=%s). Force-exiting for launchd restart.",
                                     exc,
@@ -260,6 +410,13 @@ def main() -> None:
 
             await asyncio.Event().wait()  # Block forever until shutdown signal
         finally:
+            # Clean the interrupted-response flag on graceful shutdown.
+            # This flag should only persist across CRASHES, not clean restarts
+            # from watchdog/launchd/SIGTERM. If we reach this finally block,
+            # the shutdown is orderly — no need to spam "response was interrupted".
+            flag = DATA_DIR / ".responding_to"
+            flag.unlink(missing_ok=True)
+
             # Shutdown in reverse order of startup
             await dashboard.stop()
             await webhook.stop()
