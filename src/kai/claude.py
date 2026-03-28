@@ -103,7 +103,7 @@ class PersistentClaude:
     def __init__(
         self,
         *,
-        model: str = "sonnet",
+        model: str = "opus",
         workspace: Path = Path("workspace"),
         home_workspace: Path | None = None,
         webhook_port: int = 8080,
@@ -127,6 +127,164 @@ class PersistentClaude:
         self._session_id: str | None = None
         self._fresh_session = True  # True until the first message is sent
         self._stderr_task: asyncio.Task | None = None  # Background stderr drain
+        self._message_count: int = 0
+
+    def _build_context_injection(self) -> list[str]:
+        """
+        Build the full context injection payload.
+
+        Returns a list of context blocks (MEMORY.md, TASKS.md, HACKS.md, etc.)
+        that get prepended to a prompt. Called on fresh sessions and after
+        compaction recovery — both need the same full context set.
+        """
+        from datetime import date
+
+        parts: list[str] = []
+        global_claude = Path.home() / ".claude"
+
+        if self.workspace != self.home_workspace:
+            identity_path = self.home_workspace / ".claude" / "CLAUDE.md"
+            if identity_path.exists():
+                identity = identity_path.read_text().strip()
+                if identity:
+                    parts.append(f"[Your core identity and instructions:]\n{identity}")
+
+        user_id_path = global_claude / "user-identity.md"
+        if user_id_path.exists():
+            user_id = user_id_path.read_text().strip()
+            if user_id:
+                parts.append(f"[User identity — update this as you learn more about the user:]\n{user_id}")
+
+        debt_path = global_claude / "behavioral-debt.md"
+        if debt_path.exists():
+            debt = debt_path.read_text().strip()
+            if debt:
+                parts.append(f"[Behavioral corrections — these override all other instructions:]\n{debt}")
+
+        memory_path = self.home_workspace / ".claude" / "MEMORY.md"
+        if memory_path.exists():
+            memory = memory_path.read_text().strip()
+            if memory:
+                parts.append(f"[Your persistent memory from home workspace:]\n{memory}")
+
+        memory_dir = self.home_workspace / ".memory"
+
+        tasks_path = memory_dir / "TASKS.md"
+        if tasks_path.exists():
+            tasks = tasks_path.read_text().strip()
+            if tasks:
+                parts.append(f"[Current tasks and work state — update this as you work:]\n{tasks}")
+
+        hacks_path = self.home_workspace / ".claude" / "HACKS.md"
+        if hacks_path.exists():
+            hacks = hacks_path.read_text().strip()
+            if hacks:
+                parts.append(f"[Proven workarounds and dead ends — check before multi-step operations:]\n{hacks}")
+
+        ops_path = self.home_workspace / ".claude" / "personal-ops.md"
+        if ops_path.exists():
+            ops = ops_path.read_text().strip()
+            if ops:
+                parts.append(f"[Personal deadlines and operations:]\n{ops}")
+
+        log_path = memory_dir / "logs" / f"{date.today().isoformat()}.md"
+        if log_path.exists():
+            log_content = log_path.read_text().strip()
+            if log_content:
+                lines = log_content.split("\n")
+                recent_log = "\n".join(lines[-50:])
+                parts.append(f"[Today's operational log (append to this as you work):]\n{recent_log}")
+
+        if self.workspace != self.home_workspace:
+            ws_memory_path = self.workspace / ".claude" / "MEMORY.md"
+            if ws_memory_path.exists():
+                ws_memory = ws_memory_path.read_text().strip()
+                if ws_memory:
+                    parts.append(f"[Your memory for this workspace ({self.workspace.name}):]\n{ws_memory}")
+
+        recent = get_recent_history()
+        if recent:
+            parts.append(f"[Recent conversations (search .claude/history/ for full logs):]\n{recent}")
+
+        if self.webhook_secret:
+            api_note = (
+                f"[Scheduling API: To create jobs, POST JSON to "
+                f"http://localhost:{self.webhook_port}/api/schedule "
+                f"with header 'X-Webhook-Secret: $KAI_WEBHOOK_SECRET' (environment variable). "
+                f"Required fields: name, prompt, schedule_type, schedule_data. "
+                f"Optional: job_type (reminder|claude), auto_remove (bool). "
+                f"To list jobs: GET /api/jobs. To update: PATCH /api/jobs/{{id}}. "
+                f"To delete: DELETE /api/jobs/{{id}}.]"
+            )
+            if self.workspace != self.home_workspace:
+                api_note = (
+                    f"[Workspace context: You are working in {self.workspace}. "
+                    f"Your home workspace is {self.home_workspace}.]\n{api_note}"
+                )
+            parts.append(api_note)
+
+        if self.webhook_secret:
+            parts.append(
+                f"[File API: To send a file to the user, POST JSON to "
+                f"http://localhost:{self.webhook_port}/api/send-file "
+                f"with header 'X-Webhook-Secret: $KAI_WEBHOOK_SECRET' (environment variable). "
+                f'Required: "path" (absolute file path within the current workspace {self.workspace}). '
+                f'Optional: "caption". Images are sent as photos, '
+                f"everything else as documents.\n"
+                f"Incoming files from the user are auto-saved to "
+                f"{self.workspace}/files/ and their paths are included "
+                f"in the message.]"
+            )
+
+        if self.services_info and self.webhook_secret:
+            svc_lines = [
+                "[External Services: To call external APIs, POST JSON to "
+                f"http://localhost:{self.webhook_port}/api/services/{{name}} "
+                f"with header 'X-Webhook-Secret: $KAI_WEBHOOK_SECRET' (environment variable). "
+                "Request JSON fields (all optional): "
+                '"body" (dict - forwarded as JSON), '
+                '"params" (dict - query parameters), '
+                '"path_suffix" (str - appended to base URL).',
+                "",
+                "Available services:",
+            ]
+            for svc in self.services_info:
+                svc_lines.append(f"  - {svc['name']} ({svc['method']}): {svc['description']}")
+                if svc.get("notes"):
+                    svc_lines.append(f"    Notes: {svc['notes']}")
+            svc_lines.append("")
+            svc_lines.append(
+                "Example (Perplexity web search):\n"
+                f"  curl -s -X POST http://localhost:{self.webhook_port}/api/services/perplexity "
+                f"-H 'Content-Type: application/json' "
+                f"""-H "X-Webhook-Secret: $KAI_WEBHOOK_SECRET" """
+                """-d '{"body": {"model": "sonar", "messages": [{"role": "user", "content": "your query"}]}}'"""
+            )
+            svc_lines.append(
+                "Prefer external services over built-in WebSearch/WebFetch when available "
+                "— they provide better results.]"
+            )
+            parts.append("\n".join(svc_lines))
+
+        return parts
+
+    @staticmethod
+    def _extract_tasks_focus(tasks_text: str) -> str:
+        """Extract the 'Current Focus' block from TASKS.md."""
+        focus_start = tasks_text.find("## Current Focus")
+        if focus_start < 0:
+            return ""
+        focus_end = tasks_text.find("\n## ", focus_start + 1)
+        if focus_end > 0:
+            return tasks_text[focus_start:focus_end].strip()
+        return tasks_text[focus_start:focus_start + 500].strip()
+
+    @staticmethod
+    def _prepend_to_prompt(prompt: str | list, prefix: str) -> str | list:
+        """Prepend a text block to a prompt (str or content-block list)."""
+        if isinstance(prompt, str):
+            return prefix + prompt
+        return [{"type": "text", "text": prefix}] + prompt
 
     @property
     def is_alive(self) -> bool:
@@ -169,8 +327,8 @@ class PersistentClaude:
             self.model,
             "--permission-mode",
             "bypassPermissions",
-            "--max-budget-usd",
-            str(self.max_budget_usd),
+            "--effort",
+            "max",
         ]
 
         # When running as a different user, spawn via sudo -u.
@@ -222,7 +380,7 @@ class PersistentClaude:
         Continuously read and discard stderr from the Claude process.
 
         Without this, the stderr pipe buffer fills up and the process deadlocks.
-        Lines are logged at DEBUG level (truncated to 200 chars) for diagnostics.
+        Important lines (hooks, errors, warnings) are logged at INFO level.
         """
         while self._proc and self._proc.stderr:
             try:
@@ -231,7 +389,15 @@ class PersistentClaude:
                     break
                 text = line.decode().strip()
                 if text:
-                    log.debug("Claude stderr: %s", text[:200])
+                    # Elevate important stderr to INFO so we can see hooks and errors
+                    lowered = text.lower()
+                    if any(kw in lowered for kw in (
+                        "hook", "error", "warning", "compac", "cost", "timeout",
+                        "permission", "blocked", "fail", "reject",
+                    )):
+                        log.info("Claude stderr: %s", text[:500])
+                    else:
+                        log.debug("Claude stderr: %s", text[:200])
             except Exception:
                 log.warning("Unexpected error in stderr drain", exc_info=True)
                 break
@@ -310,110 +476,55 @@ class PersistentClaude:
             )
             return
 
-        # Inject identity and memory on the first message of a new session
+        # ── Fresh-session injection: full context on first message ──
+        did_full_injection = False
         if self._fresh_session:
             self._fresh_session = False
-            parts = []
-
-            # When in a foreign workspace, inject Kai's identity from home
-            if self.workspace != self.home_workspace:
-                identity_path = self.home_workspace / ".claude" / "CLAUDE.md"
-                if identity_path.exists():
-                    identity = identity_path.read_text().strip()
-                    if identity:
-                        parts.append(f"[Your core identity and instructions:]\n{identity}")
-
-            # Always inject Kai's personal memory from home workspace
-            memory_path = self.home_workspace / ".claude" / "MEMORY.md"
-            if memory_path.exists():
-                memory = memory_path.read_text().strip()
-                if memory:
-                    parts.append(f"[Your persistent memory from home workspace:]\n{memory}")
-
-            # Inject current workspace memory if different from home
-            if self.workspace != self.home_workspace:
-                ws_memory_path = self.workspace / ".claude" / "MEMORY.md"
-                if ws_memory_path.exists():
-                    ws_memory = ws_memory_path.read_text().strip()
-                    if ws_memory:
-                        parts.append(f"[Your memory for this workspace ({self.workspace.name}):]\n{ws_memory}")
-
-            # Inject recent conversation history for continuity
-            recent = get_recent_history()
-            if recent:
-                parts.append(f"[Recent conversations (search .claude/history/ for full logs):]\n{recent}")
-
-            # Inject scheduling API info (always, so cron works from any workspace).
-            # The secret is passed via $KAI_WEBHOOK_SECRET env var (not embedded
-            # in prompt text) to prevent leakage through session logs.
-            if self.webhook_secret:
-                api_note = (
-                    f"[Scheduling API: To create jobs, POST JSON to "
-                    f"http://localhost:{self.webhook_port}/api/schedule "
-                    f"with header 'X-Webhook-Secret: $KAI_WEBHOOK_SECRET' (environment variable). "
-                    f"Required fields: name, prompt, schedule_type, schedule_data. "
-                    f"Optional: job_type (reminder|claude), auto_remove (bool). "
-                    f"To list jobs: GET /api/jobs. To update: PATCH /api/jobs/{{id}}. "
-                    f"To delete: DELETE /api/jobs/{{id}}.]"
-                )
-                if self.workspace != self.home_workspace:
-                    api_note = (
-                        f"[Workspace context: You are working in {self.workspace}. "
-                        f"Your home workspace is {self.home_workspace}.]\n{api_note}"
-                    )
-                parts.append(api_note)
-
-            # Inject file exchange API info so Claude can send files to the user
-            if self.webhook_secret:
-                parts.append(
-                    f"[File API: To send a file to the user, POST JSON to "
-                    f"http://localhost:{self.webhook_port}/api/send-file "
-                    f"with header 'X-Webhook-Secret: $KAI_WEBHOOK_SECRET' (environment variable). "
-                    f'Required: "path" (absolute file path within the current workspace {self.workspace}). '
-                    f'Optional: "caption". Images are sent as photos, '
-                    f"everything else as documents.\n"
-                    f"Incoming files from the user are auto-saved to "
-                    f"{self.workspace}/files/ and their paths are included "
-                    f"in the message.]"
-                )
-
-            # Inject available external services info (only if services are configured)
-            if self.services_info and self.webhook_secret:
-                svc_lines = [
-                    "[External Services: To call external APIs, POST JSON to "
-                    f"http://localhost:{self.webhook_port}/api/services/{{name}} "
-                    f"with header 'X-Webhook-Secret: $KAI_WEBHOOK_SECRET' (environment variable). "
-                    "Request JSON fields (all optional): "
-                    '"body" (dict - forwarded as JSON), '
-                    '"params" (dict - query parameters), '
-                    '"path_suffix" (str - appended to base URL).',
-                    "",
-                    "Available services:",
-                ]
-                for svc in self.services_info:
-                    svc_lines.append(f"  - {svc['name']} ({svc['method']}): {svc['description']}")
-                    if svc.get("notes"):
-                        svc_lines.append(f"    Notes: {svc['notes']}")
-                svc_lines.append("")
-                svc_lines.append(
-                    "Example (Perplexity web search):\n"
-                    f"  curl -s -X POST http://localhost:{self.webhook_port}/api/services/perplexity "
-                    f"-H 'Content-Type: application/json' "
-                    f"""-H "X-Webhook-Secret: $KAI_WEBHOOK_SECRET" """
-                    """-d '{"body": {"model": "sonar", "messages": [{"role": "user", "content": "your query"}]}}'"""
-                )
-                svc_lines.append(
-                    "Prefer external services over built-in WebSearch/WebFetch when available "
-                    "— they provide better results.]"
-                )
-                parts.append("\n".join(svc_lines))
-
+            self._message_count = 0
+            parts = self._build_context_injection()
             if parts:
                 prefix = "\n\n".join(parts) + "\n\n"
-                if isinstance(prompt, str):
-                    prompt = prefix + prompt
-                elif isinstance(prompt, list):
-                    prompt = [{"type": "text", "text": prefix}] + prompt
+                prompt = self._prepend_to_prompt(prompt, prefix)
+                did_full_injection = True
+
+        self._message_count += 1
+
+        # ── Per-message injection (survives mid-session compaction) ──
+        # If RECOVERY.md exists, compaction happened — do a FULL re-injection
+        # (same context as fresh session) so Claude has everything it needs.
+        # On regular messages, inject only the TASKS focus block (~5-10 lines).
+        recovery_path = self.home_workspace / ".memory" / "RECOVERY.md"
+        if recovery_path.exists():
+            try:
+                recovery = recovery_path.read_text().strip()
+                recovery_path.unlink(missing_ok=True)
+                if recovery and not did_full_injection:
+                    recovery_parts = self._build_context_injection()
+                    recovery_parts.insert(0,
+                        "[COMPACTION RECOVERY — your context was just compressed. "
+                        "All core instructions and memory re-injected below. "
+                        f"Pre-compact state:]\n{recovery}"
+                    )
+                    prefix = "\n\n".join(recovery_parts) + "\n\n"
+                    prompt = self._prepend_to_prompt(prompt, prefix)
+                elif recovery:
+                    prompt = self._prepend_to_prompt(prompt,
+                        f"[Recovery state from last compaction:]\n{recovery}\n\n"
+                    )
+            except OSError:
+                pass
+        else:
+            # Regular message — inject TASKS.md focus block for orientation
+            tasks_path = self.home_workspace / ".memory" / "TASKS.md"
+            if tasks_path.exists() and not did_full_injection:
+                try:
+                    focus = self._extract_tasks_focus(tasks_path.read_text())
+                    if focus:
+                        prompt = self._prepend_to_prompt(prompt,
+                            f"[Current work state:]\n{focus}\n\n"
+                        )
+                except OSError:
+                    pass
 
         # When in a foreign workspace, remind on every message to only respond
         # to what the user asks — workspace context (CLAUDE.md, git branch,
@@ -443,12 +554,17 @@ class PersistentClaude:
             + "\n"
         )
 
+        # Log what we're sending to Claude (truncated for readability)
+        prompt_preview = prompt[:200] if isinstance(prompt, str) else str(prompt)[:200]
+        log.info("Sending prompt to Claude (len=%d): %s...", len(msg), prompt_preview)
+
         assert self._proc is not None
         assert self._proc.stdin is not None
         assert self._proc.stdout is not None
         try:
             self._proc.stdin.write(msg.encode())
             await self._proc.stdin.drain()
+            log.info("Prompt written to Claude stdin, waiting for response stream...")
         except OSError as e:
             log.error("Failed to write to Claude process: %s", e)
             await self._kill()
@@ -465,11 +581,17 @@ class PersistentClaude:
         try:
             while True:
                 try:
-                    # Opus with tool use can go minutes between output lines
-                    timeout = self.timeout_seconds * 3
+                    # Opus doing complex tool chains (browser, subagents, research)
+                    # can easily go 10-30+ minutes between stdout lines. The
+                    # timeout here is a safety net for truly hung processes, not
+                    # a limit on how long a task can take.
+                    timeout = max(self.timeout_seconds * 5, 3600)
                     line = await asyncio.wait_for(self._proc.stdout.readline(), timeout=timeout)
                 except TimeoutError:
-                    log.error("Claude response timed out")
+                    log.error(
+                        "Claude silent for %ds — killing process (likely hung, not just slow)",
+                        timeout,
+                    )
                     await self._kill()
                     yield StreamEvent(
                         text_so_far=accumulated_text,
@@ -506,6 +628,38 @@ class PersistentClaude:
                     continue
 
                 etype = event.get("type")
+
+                # Log stream events for debugging
+                if etype == "system":
+                    log.info("Claude stream: system (session=%s)", event.get("session_id", "?"))
+                elif etype == "result":
+                    log.info(
+                        "Claude stream: result (cost=$%.4f, duration=%dms, error=%s)",
+                        event.get("total_cost_usd", 0),
+                        event.get("duration_ms", 0),
+                        event.get("is_error", False),
+                    )
+                elif etype == "assistant":
+                    msg_data = event.get("message", {})
+                    if isinstance(msg_data, dict) and "content" in msg_data:
+                        for block in msg_data.get("content", []):
+                            btype = block.get("type")
+                            if btype == "tool_use":
+                                log.info(
+                                    "Claude stream: tool_use [%s] (id=%s)",
+                                    block.get("name", "?"),
+                                    block.get("id", "?")[:12],
+                                )
+                            elif btype == "tool_result":
+                                is_err = block.get("is_error", False)
+                                log.info(
+                                    "Claude stream: tool_result (id=%s, error=%s)",
+                                    block.get("tool_use_id", "?")[:12],
+                                    is_err,
+                                )
+                            elif btype == "text":
+                                text_len = len(block.get("text", ""))
+                                log.debug("Claude stream: text block (%d chars)", text_len)
 
                 # Broadcast ALL events to dashboard
                 if etype == "assistant":
@@ -588,6 +742,38 @@ class PersistentClaude:
                 done=True,
                 response=ClaudeResponse(success=False, text=accumulated_text, error=str(e)),
             )
+
+    async def inject_message(self, text: str) -> bool:
+        """
+        Inject a user message into the Claude subprocess mid-stream.
+
+        This writes a stream-json user message to stdin WITHOUT acquiring
+        the send lock. It is only safe to call while _send_locked() already
+        holds the lock and is reading from stdout — the message will be
+        queued by Claude Code and processed after the current response.
+
+        Returns True if the write succeeded, False if the process is dead.
+        """
+        if not self.is_alive or self._proc is None or self._proc.stdin is None:
+            return False
+        msg = (
+            json.dumps({
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [{"type": "text", "text": text}],
+                },
+            })
+            + "\n"
+        )
+        try:
+            self._proc.stdin.write(msg.encode())
+            await self._proc.stdin.drain()
+            log.info("Injected mid-stream message (len=%d): %s...", len(text), text[:100])
+            return True
+        except OSError as e:
+            log.error("Failed to inject mid-stream message: %s", e)
+            return False
 
     def force_kill(self) -> None:
         """
