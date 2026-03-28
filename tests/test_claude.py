@@ -863,44 +863,61 @@ class TestSendLockedErrors:
         assert "timed out" in events[-1].response.error.lower()
 
     @pytest.mark.asyncio
-    async def test_wall_clock_timeout(self):
-        """Interaction killed when total elapsed time exceeds wall-clock limit.
+    async def test_idle_timeout(self):
+        """Interaction killed when process goes silent longer than idle limit.
 
-        Simulates a tool-use loop: the process keeps emitting assistant
-        events (resetting the per-readline timeout) but the overall
-        interaction exceeds timeout_seconds * 5. The wall-clock guard
-        should fire and kill the process.
+        The idle timeout (timeout_seconds * 5) is a secondary safety net
+        behind the per-readline timeout (timeout_seconds * 3). Because the
+        readline timeout is shorter, it normally fires first for a truly
+        silent process. This test uses a mocked time source to force the
+        idle check to trigger, verifying the error path works correctly.
         """
-        claude = _make_claude(timeout_seconds=1)  # wall-clock limit = 5s
+        claude = _make_claude(timeout_seconds=1)  # idle limit = 5s
 
-        # Feed assistant events indefinitely (simulating a chatty tool loop)
-        call_count = 0
+        # Control time progression in kai.claude without affecting asyncio.
+        # The streaming loop calls time.monotonic() in a fixed pattern:
+        #   1. Init: last_activity = time.monotonic()
+        #   2. Idle check (iter 1): time.monotonic() - last_activity
+        #   3. Reset after readline 1: last_activity = time.monotonic()
+        #   4. Idle check (iter 2): time.monotonic() - last_activity
+        #   5. Reset after readline 2: last_activity = time.monotonic()
+        #   6. Idle check (iter 3): time.monotonic() - last_activity <- jump here
+        # Calls 1-5 return small values; call 6+ returns 100.0 so the
+        # idle check sees (100.0 - 0.5) > 5s and fires.
+        mono_call = [0]
 
-        async def slow_readline():
-            nonlocal call_count
-            call_count += 1
-            # Each readline returns an assistant event after a short delay.
-            # After enough calls, the wall-clock limit is exceeded.
-            await asyncio.sleep(0.3)
-            return _assistant_event(f"Tool output {call_count}")
+        def fake_monotonic():
+            mono_call[0] += 1
+            if mono_call[0] <= 5:
+                return mono_call[0] * 0.1
+            return 100.0
+
+        readline_count = [0]
+
+        async def readline_with_output():
+            readline_count[0] += 1
+            if readline_count[0] <= 2:
+                return _assistant_event(f"Output {readline_count[0]}")
+            # If we get here, the idle timeout didn't fire as expected
+            pytest.fail("readline reached call 3 - idle timeout did not fire")
 
         proc = _make_mock_proc([])
-        proc.stdout.readline = slow_readline
+        proc.stdout.readline = readline_with_output
         claude._proc = proc
         claude._fresh_session = False
 
-        # Patch wait_for to actually respect the real timeout (not mock it)
-        events = await _collect_events(claude)
+        with patch("kai.claude.time.monotonic", side_effect=fake_monotonic):
+            events = await _collect_events(claude)
 
-        # Should get the wall-clock timeout error, not a readline timeout
+        # Should get the idle timeout error
         done_event = events[-1]
         assert done_event.done is True
         assert done_event.response.success is False
-        assert "too long" in done_event.response.error.lower()
+        assert "no output" in done_event.response.error.lower()
 
     @pytest.mark.asyncio
-    async def test_wall_clock_normal_completion_unaffected(self):
-        """Normal interactions that complete quickly are not affected by wall-clock limit."""
+    async def test_idle_timeout_normal_completion_unaffected(self):
+        """Normal interactions that complete quickly are not affected by idle timeout."""
         proc = _make_mock_proc(
             [
                 _system_event(),
@@ -908,7 +925,7 @@ class TestSendLockedErrors:
                 _result_event("Done"),
             ]
         )
-        claude = _make_claude(timeout_seconds=1)  # wall-clock = 5s
+        claude = _make_claude(timeout_seconds=1)  # idle limit = 5s
         claude._proc = proc
         claude._fresh_session = False
 
@@ -918,6 +935,50 @@ class TestSendLockedErrors:
         assert done_event.done is True
         assert done_event.response.success is True
         assert done_event.response.error is None
+
+    @pytest.mark.asyncio
+    async def test_active_process_survives_past_old_wall_clock(self):
+        """A process that keeps producing output is not killed by the idle timer.
+
+        This is the core behavioral change: under the old wall-clock limit,
+        any interaction exceeding timeout_seconds * 5 was killed regardless
+        of activity. The idle timer only fires after prolonged silence.
+        """
+        claude = _make_claude(timeout_seconds=1)  # idle limit = 5s, old wall-clock = 5s
+
+        # Simulate a process that takes longer than timeout_seconds * 5 total
+        # but keeps producing output (resetting the idle timer each time).
+        # Uses mocked time so the test runs instantly. Each readline advances
+        # time by 0.5s; after 20 calls that is 10s total, well past the old
+        # 5s wall-clock limit. The idle timer never fires because each
+        # readline resets it to within 0.5s.
+        sim_time = [0.0]
+
+        def advancing_monotonic():
+            return sim_time[0]
+
+        call_count = [0]
+
+        async def active_readline():
+            call_count[0] += 1
+            if call_count[0] <= 20:
+                sim_time[0] += 0.5  # advance 0.5s per event
+                return _assistant_event(f"Working... step {call_count[0]}")
+            return _result_event("All done")
+
+        proc = _make_mock_proc([])
+        proc.stdout.readline = active_readline
+        claude._proc = proc
+        claude._fresh_session = False
+
+        with patch("kai.claude.time.monotonic", side_effect=advancing_monotonic):
+            events = await _collect_events(claude)
+
+        # Should complete successfully despite total time > timeout_seconds * 5
+        done_event = events[-1]
+        assert done_event.done is True
+        assert done_event.response.success is True
+        assert done_event.response.text  # Has content
 
     @pytest.mark.asyncio
     async def test_eof_with_text(self):
