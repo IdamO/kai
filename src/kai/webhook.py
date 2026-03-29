@@ -49,6 +49,7 @@ from telegram import Update
 
 from kai import cron, services, sessions
 from kai.config import IMAGE_EXTENSIONS
+from kai.transcribe import TranscriptionError, fetch_yt_transcript, list_yt_transcripts
 
 log = logging.getLogger(__name__)
 
@@ -728,6 +729,93 @@ async def _handle_send_file(request: web.Request) -> web.Response:
     return web.json_response({"status": "sent", "file": path.name})
 
 
+# ── Send message to Telegram chat ──────────────────────────────────
+
+
+@_require_secret
+async def _handle_send_message(request: web.Request) -> web.Response:
+    """
+    Send a text message to the configured Telegram chat.
+
+    Used by the dashboard to send messages/commands to Kai. The message
+    appears as if sent by the bot, which the handle_message handler in
+    bot.py won't process (it only handles user messages). For task
+    mutations, the dashboard sends natural-language instructions that
+    Kai processes when it next reads the message.
+
+    Request JSON fields:
+        text: str - message text (required)
+
+    Returns:
+        JSON {"status": "sent"} on success.
+    """
+    try:
+        payload = await request.json()
+    except json.JSONDecodeError:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    text = payload.get("text", "")
+    if not text:
+        return web.json_response({"error": "Missing required field: text"}, status=400)
+
+    bot = request.app["telegram_bot"]
+    chat_id = request.app["chat_id"]
+
+    try:
+        await bot.send_message(chat_id, text)
+        log.info("Sent dashboard message to chat %d: %s...", chat_id, text[:80])
+        return web.json_response({"status": "sent"})
+    except Exception as e:
+        log.exception("Failed to send dashboard message")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+# ── YouTube transcript ──────────────────────────────────────────────
+
+
+@_require_secret
+async def _handle_yt_transcript(request: web.Request) -> web.Response:
+    """
+    Fetch a YouTube video's transcript (captions) without downloading the video.
+
+    Request JSON fields:
+        url: str — YouTube URL or bare video ID (required)
+        languages: list[str] — preferred language codes (default ["en"])
+        timestamps: bool — include [MM:SS] timestamps (default false)
+        list_only: bool — just list available languages (default false)
+
+    Returns:
+        JSON {"transcript": "...", "video_id": "..."} on success, or
+        JSON {"languages": [...]} if list_only is true, or
+        JSON {"error": "..."} on failure.
+    """
+    try:
+        payload = await request.json()
+    except json.JSONDecodeError:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    url = payload.get("url")
+    if not url:
+        return web.json_response({"error": "Missing required field: url"}, status=400)
+
+    list_only = payload.get("list_only", False)
+
+    try:
+        if list_only:
+            languages = list_yt_transcripts(url)
+            return web.json_response({"languages": languages})
+
+        languages = payload.get("languages")
+        timestamps = payload.get("timestamps", False)
+        transcript = fetch_yt_transcript(url, languages=languages, include_timestamps=timestamps)
+        return web.json_response({"transcript": transcript, "video_id": url})
+    except TranscriptionError as e:
+        return web.json_response({"error": str(e)}, status=422)
+    except Exception:
+        log.exception("YouTube transcript failed for %s", url)
+        return web.json_response({"error": "Internal error"}, status=500)
+
+
 # ── Lifecycle ────────────────────────────────────────────────────────
 
 
@@ -783,6 +871,8 @@ async def start(telegram_app, config) -> None:
         _app.router.add_patch("/api/jobs/{id}", _handle_update_job)
         _app.router.add_post("/api/services/{name}", _handle_service_call)
         _app.router.add_post("/api/send-file", _handle_send_file)
+        _app.router.add_post("/api/send-message", _handle_send_message)
+        _app.router.add_post("/api/yt-transcript", _handle_yt_transcript)
     else:
         log.warning("WEBHOOK_SECRET not set - webhook and scheduling endpoints disabled")
 
