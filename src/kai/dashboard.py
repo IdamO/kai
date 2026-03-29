@@ -275,11 +275,24 @@ async def _handle_index(request: web.Request) -> web.Response:
 
 
 async def _handle_history(request: web.Request) -> web.Response:
-    since = request.query.get("since", "")
-    all_events = events.recent(10000)
-    if since:
-        all_events = [e for e in all_events if e["ts"] > since]
-    return web.json_response(all_events)
+    since_ts = request.query.get("since", "")
+    before = request.query.get("before", "")
+    limit = min(int(request.query.get("limit", "500")), 1000)
+    if since_ts:
+        # Catch-up / gap-fill — read from disk (survives buffer rollover)
+        result = events.since(since_ts, before=before, limit=limit)
+        resp = web.json_response(result)
+    elif before:
+        # Paginating older events — read from disk
+        resp = web.json_response(events.paginate(before=before, limit=limit))
+    else:
+        # Initial load — disk first, memory fallback
+        result = events.paginate(before="", limit=limit)
+        if not result:
+            result = events.recent(limit)
+        resp = web.json_response(result)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 async def _handle_events(request: web.Request) -> web.StreamResponse:
