@@ -233,6 +233,7 @@ def main() -> None:
 
             # Reload scheduled jobs from the database into APScheduler
             await cron.init_jobs(app)
+            await cron.start_task_drain(app)
 
             # Start the HTTP server (always runs - serves scheduling API, GitHub
             # webhooks, file exchange, and health check regardless of transport mode).

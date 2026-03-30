@@ -91,6 +91,12 @@ body {
 .collapsed .body { display: none; }
 .line .toggle { color: #484f58; cursor: pointer; margin-left: 6px; font-size: 11px; user-select: none; }
 .line .toggle:hover { color: #8b949e; }
+.line.expandable { cursor: pointer; }
+.line.expandable:hover { background: #1c2129; }
+.line .detail { display: none; color: #6e7681; margin-top: 4px; padding: 4px 0 2px 0; border-top: 1px solid #21262d; font-size: 12px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+.line.expanded .detail { display: block; }
+.line .chevron { color: #484f58; font-size: 10px; margin-right: 4px; display: inline-block; transition: transform 0.15s; user-select: none; }
+.line.expanded .chevron { transform: rotate(90deg); }
 #error { color: #f85149; padding: 20px; text-align: center; display: none; }
 </style>
 </head>
@@ -125,15 +131,19 @@ function esc(s) { let d = document.createElement('span'); d.textContent = s; ret
 function trunc(s, n) { return s && s.length > n ? s.slice(0, n) + '...' : (s || ''); }
 
 function fmtInput(input) {
-    if (!input || typeof input !== 'object') return String(input || '');
-    // For common tools, show compact form
-    if (input.command) return input.command;
-    if (input.query) return input.query;
-    if (input.url) return input.url + (input.prompt ? ' | ' + input.prompt : '');
-    if (input.file_path) return input.file_path;
-    if (input.pattern) return input.pattern + (input.path ? ' in ' + input.path : '');
-    try { return JSON.stringify(input, null, 2); }
-    catch(e) { return String(input); }
+    if (!input || typeof input !== 'object') return {summary: String(input || ''), full: ''};
+    let summary = '', full = '';
+    try { full = JSON.stringify(input, null, 2); } catch(e) { full = String(input); }
+    if (input.command) summary = input.command;
+    else if (input.query) summary = input.query;
+    else if (input.url) summary = input.url + (input.prompt ? ' | ' + input.prompt : '');
+    else if (input.file_path) summary = input.file_path;
+    else if (input.pattern) summary = input.pattern + (input.path ? ' in ' + input.path : '');
+    else if (input.description) summary = input.description;
+    else summary = full.length > 120 ? full.slice(0, 120) + '...' : full;
+    if (summary.length > 200) summary = summary.slice(0, 200) + '...';
+    let hasFull = full.length > summary.length + 5;
+    return {summary, full: hasFull ? full : ''};
 }
 
 function addEvent(ev) {
@@ -145,25 +155,66 @@ function addEvent(ev) {
 
     if (ev.type === 'thinking') {
         line.className = 'line think';
-        line.innerHTML = time + '<span class="label">THINK </span><span class="body">' + esc(d.thinking || '') + '</span>';
+        let thought = d.thinking || '';
+        if (thought.length > 200) {
+            line.className += ' expandable';
+            let preview = thought.slice(0, 150).split('\n')[0] + '...';
+            line.innerHTML = time + '<span class="label">THINK </span><span class="body">'
+                + '<span class="chevron">\u25B6</span>' + esc(preview)
+                + '<div class="detail">' + esc(thought) + '</div></span>';
+            line.onclick = () => line.classList.toggle('expanded');
+        } else {
+            line.innerHTML = time + '<span class="label">THINK </span><span class="body">' + esc(thought) + '</span>';
+        }
         setDot('active'); lastAct = Date.now();
 
     } else if (ev.type === 'tool_use') {
         tools++;
         line.className = 'line tool';
-        let args = fmtInput(d.input);
-        line.innerHTML = time + '<span class="label">TOOL  </span><span class="body">'
-            + esc(d.tool || '?') + ' <span class="args">' + esc(args) + '</span></span>';
+        let {summary, full} = fmtInput(d.input);
+        let toolName = d.tool || '?';
+        let summaryLabel = toolName + (summary ? ' \u2014 ' + summary : '');
+        if (full) {
+            line.className += ' expandable';
+            line.innerHTML = time + '<span class="label">TOOL  </span><span class="body">'
+                + '<span class="chevron">\u25B6</span>' + esc(summaryLabel)
+                + '<div class="detail">' + esc(full) + '</div></span>';
+            line.onclick = () => line.classList.toggle('expanded');
+        } else {
+            line.innerHTML = time + '<span class="label">TOOL  </span><span class="body">'
+                + esc(summaryLabel) + '</span>';
+        }
         setDot('active'); lastAct = Date.now();
 
     } else if (ev.type === 'tool_result') {
         line.className = 'line res' + (d.is_error ? ' err' : '');
-        line.innerHTML = time + '<span class="label">' + (d.is_error ? 'ERR   ' : 'RES   ') + '</span>'
-            + '<span class="body">' + esc(d.output || '') + '</span>';
+        let output = d.output || '(result received)';
+        let label = d.is_error ? 'ERR   ' : 'RES   ';
+        if (output.length > 150) {
+            line.className += ' expandable';
+            let preview = output.slice(0, 120).split('\n')[0] + '...';
+            line.innerHTML = time + '<span class="label">' + label + '</span>'
+                + '<span class="body"><span class="chevron">\u25B6</span>' + esc(preview)
+                + '<div class="detail">' + esc(output) + '</div></span>';
+            line.onclick = () => line.classList.toggle('expanded');
+        } else {
+            line.innerHTML = time + '<span class="label">' + label + '</span>'
+                + '<span class="body">' + esc(output) + '</span>';
+        }
 
     } else if (ev.type === 'text') {
         line.className = 'line text';
-        line.innerHTML = time + '<span class="label">TEXT  </span><span class="body">' + esc(d.text || '') + '</span>';
+        let txt = d.text || '';
+        if (txt.length > 500) {
+            line.className += ' expandable';
+            let preview = txt.slice(0, 200).split('\n').slice(0, 3).join('\n') + '...';
+            line.innerHTML = time + '<span class="label">TEXT  </span><span class="body">'
+                + '<span class="chevron">\u25B6</span>' + esc(preview)
+                + '<div class="detail">' + esc(txt) + '</div></span>';
+            line.onclick = () => line.classList.toggle('expanded');
+        } else {
+            line.innerHTML = time + '<span class="label">TEXT  </span><span class="body">' + esc(txt) + '</span>';
+        }
         setDot('active'); lastAct = Date.now();
 
     } else if (ev.type === 'result') {
@@ -190,27 +241,27 @@ function addEvent(ev) {
 
     } else if (ev.type === 'raw') {
         let rtype = d.type || 'raw';
-        if (rtype === 'user' && d.preview) {
-            let p = d.preview || '';
-            if (p.includes('tool_result')) {
-                line.className = 'line res';
-                let m = p.match(/"text":\s*"([\s\S]*?)(?:"\s*[,}])/);
-                let out = m ? m[1].replace(/\\n/g, '\n').replace(/\\t/g, '\t') : '(result received)';
-                line.innerHTML = time + '<span class="label">RES   </span><span class="body">' + esc(out) + '</span>';
-            } else {
-                return;
-            }
-        } else if (rtype === 'rate_limit_event') {
-            return;
-        } else {
-            line.className = 'line system';
-            line.innerHTML = time + '<span class="label">SYS   </span><span class="body">' + esc(rtype) + '</span>';
-        }
+        if (rtype === 'rate_limit_event') return;
+        line.className = 'line system';
+        line.innerHTML = time + '<span class="label">SYS   </span><span class="body">' + esc(rtype + (d.preview ? ': ' + d.preview.slice(0, 100) : '')) + '</span>';
+
+    } else if (ev.type === 'compaction') {
+        line.className = 'line result';
+        line.style.borderLeft = '3px solid #f85149';
+        line.innerHTML = time + '<span class="label" style="color:#f85149">COMPACT</span><span class="body">'
+            + esc('Session changed: ' + (d.old_session || '?') + ' → ' + (d.new_session || '?')
+            + ' (msg #' + (d.message_count || '?') + ')') + '</span>';
 
     } else if (ev.type === 'system') {
         line.className = 'line system';
         let sid = (d.session_id || '').slice(0, 8);
-        line.innerHTML = time + '<span class="label">SYS   </span><span class="body">session ' + esc(sid) + '</span>';
+        if (d.restart) {
+            line.innerHTML = time + '<span class="label" style="color:#d29922">RESTART</span><span class="body">' + esc(d.reason || 'subprocess restart') + '</span>';
+        } else if (d.auto_pickup) {
+            line.innerHTML = time + '<span class="label" style="color:#3fb950">AUTO  </span><span class="body">task auto-pickup</span>';
+        } else {
+            line.innerHTML = time + '<span class="label">SYS   </span><span class="body">session ' + esc(sid) + '</span>';
+        }
 
     } else {
         line.className = 'line system';
@@ -222,37 +273,71 @@ function addEvent(ev) {
     while (feed.children.length > 2000) feed.removeChild(feed.lastChild);
 }
 
-// Track latest timestamp to only fetch new events
-let lastTs = '';
-let polling = false;
+// --- SSE-first with seq-based gap-fill (no timestamp dedup needed) ---
+let lastSeq = 0;
+let sse = null;
+let seenSeqs = new Set();
 
-function loadEvents() {
-    let url = '/history' + (lastTs ? '?since=' + encodeURIComponent(lastTs) : '');
-    fetch(url)
-        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-        .then(evts => {
-            errorEl.style.display = 'none';
-            if (!polling) setDot('idle');
-            if (evts.length > 0) {
-                evts.forEach(addEvent);
-                lastTs = evts[evts.length - 1].ts;
-            }
-            polling = true;
-        })
-        .catch(e => {
-            if (!polling) {
-                errorEl.textContent = 'Failed to load: ' + e.message;
-                errorEl.style.display = 'block';
-            }
-            setDot('disconnected');
+// Step 1: Load recent history from disk
+fetch('/history?limit=500')
+    .then(r => r.json())
+    .then(evts => {
+        evts.forEach(ev => {
+            let s = ev.seq || 0;
+            if (s && seenSeqs.has(s)) return;
+            if (s) seenSeqs.add(s);
+            addEvent(ev);
+            if (s > lastSeq) lastSeq = s;
         });
+        errorEl.style.display = 'none';
+        connectSSE();
+    })
+    .catch(e => {
+        errorEl.textContent = 'Failed to load history: ' + e.message;
+        errorEl.style.display = 'block';
+        setDot('disconnected');
+        connectSSE();
+    });
+
+function connectSSE() {
+    if (sse) { sse.close(); sse = null; }
+    sse = new EventSource('/events');
+    sse.onopen = () => { setDot('idle'); errorEl.style.display = 'none'; };
+    sse.onmessage = (msg) => {
+        try {
+            let ev = JSON.parse(msg.data);
+            let s = ev.seq || 0;
+            if (s && seenSeqs.has(s)) return;
+            if (s) seenSeqs.add(s);
+            addEvent(ev);
+            if (s > lastSeq) lastSeq = s;
+        } catch(e) {}
+    };
+    sse.onerror = () => {
+        setDot('disconnected');
+        if (sse.readyState === EventSource.CLOSED) {
+            setTimeout(() => {
+                if (lastSeq > 0) {
+                    fetch('/history?since_seq=' + lastSeq + '&limit=1000')
+                        .then(r => r.json())
+                        .then(evts => {
+                            evts.forEach(ev => {
+                                let s = ev.seq || 0;
+                                if (s && seenSeqs.has(s)) return;
+                                if (s) seenSeqs.add(s);
+                                addEvent(ev);
+                                if (s > lastSeq) lastSeq = s;
+                            });
+                        })
+                        .catch(() => {});
+                }
+                connectSSE();
+            }, 2000);
+        }
+    };
+    // Trim seenSeqs periodically
+    setInterval(() => { if (seenSeqs.size > 5000) seenSeqs = new Set([...seenSeqs].slice(-2000)); }, 60000);
 }
-
-// Initial load
-loadEvents();
-
-// Poll every 1.5 seconds for new events
-setInterval(loadEvents, 1500);
 
 // Auto-detect idle
 setInterval(() => {
@@ -276,17 +361,18 @@ async def _handle_index(request: web.Request) -> web.Response:
 
 async def _handle_history(request: web.Request) -> web.Response:
     since_ts = request.query.get("since", "")
+    since_seq = int(request.query.get("since_seq", "0"))
     before = request.query.get("before", "")
     limit = min(int(request.query.get("limit", "500")), 1000)
-    if since_ts:
-        # Catch-up / gap-fill — read from disk (survives buffer rollover)
+    if since_seq > 0:
+        result = events.since(after_seq=since_seq, limit=limit)
+        resp = web.json_response(result)
+    elif since_ts:
         result = events.since(since_ts, before=before, limit=limit)
         resp = web.json_response(result)
     elif before:
-        # Paginating older events — read from disk
         resp = web.json_response(events.paginate(before=before, limit=limit))
     else:
-        # Initial load — disk first, memory fallback
         result = events.paginate(before="", limit=limit)
         if not result:
             result = events.recent(limit)
@@ -435,14 +521,23 @@ async def _handle_jobs_proxy(request: web.Request) -> web.Response:
 
 
 async def _handle_action_items(request: web.Request) -> web.Response:
-    """Extract action items that need user input from TASKS.md."""
+    """Return attention items from ATTENTION.json, falling back to TASKS.md keyword scan."""
+    attention_path = WORKSPACE / ".memory" / "ATTENTION.json"
+    if attention_path.exists():
+        try:
+            data = json.loads(attention_path.read_text())
+            items = [i for i in data.get("items", []) if not i.get("resolved")]
+            return web.json_response(items)
+        except Exception:
+            pass
+
+    # Fallback: scan TASKS.md for keywords
     tasks_path = WORKSPACE / ".memory" / "TASKS.md"
     items = []
     if tasks_path.exists():
         raw = tasks_path.read_text()
         for line in raw.split("\n"):
             line = line.strip()
-            # Look for unchecked items with keywords suggesting user action needed
             if line.startswith("- [ ]") and any(kw in line.upper() for kw in
                     ["NEEDS", "BLOCKED", "OVERDUE", "NEEDS IDAM", "WAITING"]):
                 m = re.match(r"- \[ \]\s*\*\*(.+?)\*\*\s*[—–-]\s*(.*)", line)
@@ -551,19 +646,27 @@ async def _handle_status(request: web.Request) -> web.Response:
     tool_count = sum(1 for e in all_events if e.get("type") in ("tool_use", "tool"))
     text_count = sum(1 for e in all_events if e.get("type") == "text")
 
-    # Action items needing user attention
+    # Action items from ATTENTION.json (preferred) or TASKS.md fallback
     action_items = []
-    tasks_path = WORKSPACE / ".memory" / "TASKS.md"
-    if tasks_path.exists():
-        raw = tasks_path.read_text()
-        for line in raw.split("\n"):
-            line = line.strip()
-            if line.startswith("- [ ]") and any(kw in line.upper() for kw in
-                    ["NEEDS", "BLOCKED", "OVERDUE", "NEEDS IDAM", "WAITING"]):
-                m = re.match(r"- \[ \]\s*\*\*(.+?)\*\*\s*[-]+\s*(.*)", line)
-                if m:
-                    action_items.append({"name": m.group(1), "detail": m.group(2),
-                                         "urgent": "OVERDUE" in line.upper()})
+    attention_path = WORKSPACE / ".memory" / "ATTENTION.json"
+    if attention_path.exists():
+        try:
+            attn_data = json.loads(attention_path.read_text())
+            action_items = [i for i in attn_data.get("items", []) if not i.get("resolved")]
+        except Exception:
+            pass
+    if not action_items:
+        tasks_path = WORKSPACE / ".memory" / "TASKS.md"
+        if tasks_path.exists():
+            raw = tasks_path.read_text()
+            for line in raw.split("\n"):
+                line = line.strip()
+                if line.startswith("- [ ]") and any(kw in line.upper() for kw in
+                        ["NEEDS", "BLOCKED", "OVERDUE", "NEEDS IDAM", "WAITING"]):
+                    m = re.match(r"- \[ \]\s*\*\*(.+?)\*\*\s*[-]+\s*(.*)", line)
+                    if m:
+                        action_items.append({"name": m.group(1), "detail": m.group(2),
+                                             "urgent": "OVERDUE" in line.upper()})
 
     # Pending (non-done) task count
     pending = [t for t in (tasks.get("dynamic") or [])
@@ -897,6 +1000,133 @@ async def _handle_static(request: web.Request) -> web.Response:
     return web.Response(body=filepath.read_bytes(), content_type=ct)
 
 
+
+async def _handle_attention_update(request: web.Request) -> web.Response:
+    """Direct CRUD for .memory/ATTENTION.json — no Telegram, no chat, just data."""
+    attention_path = WORKSPACE / ".memory" / "ATTENTION.json"
+    
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+    
+    action = body.get("action")
+    
+    # Load existing data
+    data = {"version": 1, "items": [], "last_updated": ""}
+    if attention_path.exists():
+        try:
+            data = json.loads(attention_path.read_text())
+        except Exception:
+            pass
+    
+    if action == "resolve":
+        item_id = body.get("id")
+        if not item_id:
+            return web.json_response({"error": "Missing id"}, status=400)
+        for item in data.get("items", []):
+            if item.get("id") == item_id:
+                item["resolved"] = datetime.now(UTC).isoformat()
+                break
+        else:
+            return web.json_response({"error": "Item not found"}, status=404)
+    
+    elif action == "add":
+        new_item = {
+            "id": body.get("id", f"dash-{int(datetime.now(UTC).timestamp())}"),
+            "type": body.get("type", "question"),
+            "title": body.get("title", ""),
+            "detail": body.get("detail", ""),
+            "created": datetime.now(UTC).isoformat(),
+            "resolved": None,
+            "urgent": body.get("urgent", False),
+            "context": body.get("context", "Added from dashboard"),
+        }
+        data.setdefault("items", []).append(new_item)
+    
+    elif action == "delete":
+        item_id = body.get("id")
+        data["items"] = [i for i in data.get("items", []) if i.get("id") != item_id]
+    
+    else:
+        return web.json_response({"error": "Unknown action"}, status=400)
+    
+    data["last_updated"] = datetime.now(UTC).isoformat()
+    attention_path.write_text(json.dumps(data, indent=2))
+    
+    remaining = [i for i in data.get("items", []) if not i.get("resolved")]
+    return web.json_response({"ok": True, "remaining": len(remaining)})
+
+
+
+async def _handle_job_action(request: web.Request) -> web.Response:
+    """Direct proxy to scheduling API for job CRUD — no Telegram involved."""
+    job_id = request.match_info.get("id", "")
+    method = request.method
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = f"http://localhost:{WEBHOOK_PORT}/api/jobs/{job_id}"
+            headers = {"X-Webhook-Secret": _webhook_secret()}
+            
+            if method == "DELETE":
+                async with session.delete(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                    data = await resp.json()
+                    return web.json_response(data)
+            elif method == "POST":
+                body = await request.json() if request.content_length else {}
+                action = body.get("action", "run")
+                if action == "run":
+                    async with session.post(
+                        f"http://localhost:{WEBHOOK_PORT}/api/jobs/{job_id}/run",
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=10),
+                    ) as resp:
+                        data = await resp.json()
+                        return web.json_response(data)
+                elif action == "patch":
+                    async with session.patch(url, headers=headers, json=body.get("data", {}),
+                                             timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                        data = await resp.json()
+                        return web.json_response(data)
+            
+            return web.json_response({"error": "Unsupported method"}, status=405)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=502)
+
+
+async def _handle_file_write(request: web.Request) -> web.Response:
+    """Write a file within the workspace — for direct dashboard state manipulation."""
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+    
+    rel_path = body.get("path", "")
+    file_content = body.get("content", "")
+    
+    if not rel_path:
+        return web.json_response({"error": "Missing path"}, status=400)
+    
+    target = (WORKSPACE / rel_path).resolve()
+    
+    # Confine to workspace, only allow .memory/ and specific safe paths
+    try:
+        target.relative_to(WORKSPACE.resolve())
+    except ValueError:
+        return web.json_response({"error": "Path outside workspace"}, status=403)
+    
+    # Safety: only allow writing to .memory/ directory
+    rel = str(target.relative_to(WORKSPACE.resolve()))
+    if not rel.startswith(".memory"):
+        return web.json_response({"error": "Can only write to .memory/"}, status=403)
+    
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(file_content)
+    
+    return web.json_response({"ok": True, "path": rel_path})
+
+
 async def start(port: int = 3456) -> None:
     """Start the dashboard server on the given port."""
     global _runner
@@ -923,6 +1153,10 @@ async def start(port: int = 3456) -> None:
     app.router.add_get("/api/todos", _handle_todos)
     app.router.add_get("/api/files", _handle_files_list)
     app.router.add_get("/api/file", _handle_file_read)
+    app.router.add_post("/api/attention", _handle_attention_update)
+    app.router.add_delete("/api/jobs/{id}", _handle_job_action)
+    app.router.add_post("/api/jobs/{id}", _handle_job_action)
+    app.router.add_post("/api/file/write", _handle_file_write)
     _runner = web.AppRunner(app, access_log=None)
     await _runner.setup()
     site = web.TCPSite(_runner, "0.0.0.0", port)

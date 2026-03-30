@@ -349,3 +349,71 @@ async def _job_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
                 job.schedule_removal()
             except Exception:
                 log.exception("Failed to send job %d result", job_id)
+
+
+async def start_task_drain(app: Application, interval_seconds: int = 1800) -> None:
+    """Register a periodic task drain that checks for queued work when Kai is idle.
+
+    Runs every `interval_seconds` (default 30 min). If no lock is held (idle)
+    and TASKS.md has in-progress/up-next items, sends a continuation prompt.
+    """
+    jq = app.job_queue
+    assert jq is not None
+
+    async def _task_drain_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
+        claude = context.bot_data.get("claude")
+        if not claude or not claude.is_alive:
+            return
+
+        config = context.bot_data.get("config")
+        if not config:
+            return
+
+        for chat_id in config.allowed_user_ids:
+            lock = get_lock(chat_id)
+            if lock.locked():
+                continue
+
+            tasks_path = claude.home_workspace / ".memory" / "TASKS.md"
+            if not tasks_path.exists():
+                continue
+
+            tasks_text = tasks_path.read_text()
+            has_work = False
+            for marker in ("## In Progress", "## Up Next", "## Dynamic Tasks"):
+                idx = tasks_text.find(marker)
+                if idx < 0:
+                    continue
+                section_end = tasks_text.find("\n## ", idx + 1)
+                section = tasks_text[idx:section_end] if section_end > 0 else tasks_text[idx:]
+                if "- [ ]" in section or "- [~]" in section:
+                    has_work = True
+                    break
+
+            if not has_work:
+                continue
+
+            log.info("Task drain: found queued tasks for chat %d, sending continuation", chat_id)
+            async with lock:
+                prompt = (
+                    "[SCHEDULED TASK CHECK: You have queued tasks in TASKS.md. "
+                    "Check your task list and continue working on the highest priority item. "
+                    "Update TASKS.md as you progress. If all tasks are complete, do nothing.]"
+                )
+                try:
+                    async for ev in claude.send(prompt):
+                        if ev.done:
+                            if ev.response and ev.response.success and ev.response.text:
+                                log_message(direction="assistant", chat_id=chat_id, text=ev.response.text)
+                            break
+                except Exception:
+                    log.exception("Task drain failed for chat %d", chat_id)
+            break  # One chat at a time
+
+    jq.run_repeating(
+        _task_drain_callback,
+        interval=interval_seconds,
+        name="task_drain",
+        first=300,  # First check 5 min after startup
+    )
+    log.info("Task drain registered (every %ds)", interval_seconds)

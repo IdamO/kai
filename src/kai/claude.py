@@ -100,6 +100,19 @@ class PersistentClaude:
     operation via Telegram) and --max-budget-usd to cap per-session spending.
     """
 
+    # Proactive restart threshold: restart between messages when context
+    # usage exceeds this fraction of the model's max window, preventing
+    # compaction from ever firing mid-flight.
+    CONTEXT_RESTART_RATIO = 0.65
+    # Max context windows by model family (tokens)
+    _MAX_CONTEXT = {"opus": 200_000, "sonnet": 200_000, "haiku": 200_000}
+    # Periodic context refresh interval (inject TASKS + HACKS every N messages)
+    REFRESH_INTERVAL = 15
+
+    # Codex model mapping: empty string = use Codex default (works with ChatGPT subscription).
+    # ChatGPT-auth Codex uses its own model set, not API models like gpt-4.1.
+    _CODEX_MODELS: dict[str, str] = {}
+
     def __init__(
         self,
         *,
@@ -112,6 +125,7 @@ class PersistentClaude:
         timeout_seconds: int = 120,
         services_info: list[dict] | None = None,
         claude_user: str | None = None,
+        backend: str = "claude",  # "claude" or "codex"
     ):
         self.model = model
         self.workspace = workspace
@@ -122,12 +136,17 @@ class PersistentClaude:
         self.timeout_seconds = timeout_seconds
         self.services_info = services_info or []
         self.claude_user = claude_user
+        self.backend = backend
         self._proc: asyncio.subprocess.Process | None = None
         self._lock = asyncio.Lock()  # Serializes all message sends
         self._session_id: str | None = None
         self._fresh_session = True  # True until the first message is sent
         self._stderr_task: asyncio.Task | None = None  # Background stderr drain
         self._message_count: int = 0
+        self._last_pushed_session_id: str | None = None  # For A3: suppress duplicate system events
+        self._last_input_tokens: int = 0  # For B4: track context usage
+        self._needs_restart: bool = False  # For B4: flag for between-message restart
+        self._compacted_mid_stream: bool = False  # For B2: mid-stream compaction detection
 
     def _build_context_injection(self) -> list[str]:
         """
@@ -315,7 +334,26 @@ class PersistentClaude:
         if self.is_alive:
             return
 
-        # Build the Claude command arguments.
+        env = os.environ.copy()
+        if self.webhook_secret:
+            env["KAI_WEBHOOK_SECRET"] = self.webhook_secret
+
+        if self.backend == "codex":
+            # ── Codex backend: one-shot exec per message (no persistent session) ──
+            # Codex doesn't support persistent stdin/stdout sessions like Claude.
+            # We handle this by spawning a new `codex exec` per send() call.
+            # _ensure_started() for codex is a no-op — the process is spawned
+            # in _send_codex_locked() instead.
+            log.info(
+                "Codex backend configured (model=%s → %s)",
+                self.model,
+                self._CODEX_MODELS.get(self.model, self.model),
+            )
+            self._session_id = None
+            self._fresh_session = True
+            return
+
+        # ── Claude backend (default): persistent subprocess ──
         claude_cmd = [
             "claude",
             "--input-format",
@@ -345,16 +383,9 @@ class PersistentClaude:
             self.claude_user or "(same as bot)",
         )
 
-        # Pass the webhook secret via environment variable so it never
-        # appears in prompt text, Claude Code session logs, or Anthropic's
-        # API logs. The inner Claude references $KAI_WEBHOOK_SECRET in curl
-        # commands instead of a literal secret value.
-        env = os.environ.copy()
         # Remove API key so Claude Code uses the host's Max subscription
         # login instead of pay-per-use API billing.
         env.pop("ANTHROPIC_API_KEY", None)
-        if self.webhook_secret:
-            env["KAI_WEBHOOK_SECRET"] = self.webhook_secret
 
         self._proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -445,6 +476,167 @@ class PersistentClaude:
             async for event in self._send_locked(prompt):
                 yield event
 
+    async def _send_codex_locked(self, prompt: str | list) -> AsyncIterator[StreamEvent]:
+        """
+        Send a message to Codex and yield streaming events.
+
+        Codex doesn't support persistent stdin/stdout sessions. Each call
+        spawns a fresh `codex exec` process. Context injection is prepended
+        to the prompt text as system-style instructions.
+        """
+        # Flatten content blocks to text for Codex
+        if isinstance(prompt, list):
+            text_parts = []
+            for block in prompt:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text_parts.append(block["text"])
+                elif isinstance(block, str):
+                    text_parts.append(block)
+            prompt_text = "\n\n".join(text_parts)
+        else:
+            prompt_text = prompt
+
+        # On first message, prepend context injection
+        if self._fresh_session:
+            self._fresh_session = False
+            self._message_count = 0
+            parts = self._build_context_injection()
+            if parts:
+                prompt_text = "\n\n".join(parts) + "\n\n" + prompt_text
+
+        self._message_count += 1
+
+        cmd = [
+            "codex", "exec",
+            "--json",
+            "--dangerously-bypass-approvals-and-sandbox",
+            "-C", str(self.workspace),
+            prompt_text,
+        ]
+        # If a specific Codex model is mapped, pass it. Otherwise use Codex default
+        # (which works with ChatGPT subscription auth — no API charges).
+        codex_model = self._CODEX_MODELS.get(self.model)
+        if codex_model:
+            cmd.insert(-1, "-c")
+            cmd.insert(-1, f'model="{codex_model}"')
+
+        env = os.environ.copy()
+        if self.webhook_secret:
+            env["KAI_WEBHOOK_SECRET"] = self.webhook_secret
+
+        log.info("Spawning Codex exec (model=%s, prompt_len=%d)", codex_model, len(prompt_text))
+
+        try:
+            self._proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(self.workspace),
+                env=env,
+                limit=4 * 1024 * 1024,
+            )
+        except FileNotFoundError:
+            yield StreamEvent(
+                text_so_far="",
+                done=True,
+                response=ClaudeResponse(success=False, text="", error="codex CLI not found"),
+            )
+            return
+
+        self._stderr_task = asyncio.create_task(self._drain_stderr())
+        accumulated_text = ""
+
+        try:
+            while True:
+                timeout = max(self.timeout_seconds * 5, 3600)
+                try:
+                    line = await asyncio.wait_for(self._proc.stdout.readline(), timeout=timeout)
+                except TimeoutError:
+                    log.error("Codex silent for %ds — killing", timeout)
+                    await self._kill()
+                    yield StreamEvent(
+                        text_so_far=accumulated_text, done=True,
+                        response=ClaudeResponse(success=False, text=accumulated_text, error="Codex timed out"),
+                    )
+                    return
+
+                if not line:
+                    # Process finished
+                    text = accumulated_text
+                    yield StreamEvent(
+                        text_so_far=text, done=True,
+                        response=ClaudeResponse(
+                            success=bool(text), text=text,
+                            error=None if text else "Codex returned no output",
+                        ),
+                    )
+                    return
+
+                try:
+                    event = json.loads(line.decode())
+                except json.JSONDecodeError:
+                    continue
+
+                etype = event.get("type", "")
+
+                # Map Codex JSONL events to our StreamEvent + dashboard events
+                if etype == "thread.started":
+                    sid = event.get("thread_id", "")
+                    self._session_id = sid
+                    events.push("system", {"session_id": sid, "backend": "codex"})
+
+                elif etype == "item.completed":
+                    item = event.get("item", {})
+                    item_type = item.get("type", "")
+                    if item_type == "agent_message":
+                        new_text = item.get("text", "")
+                        if new_text:
+                            if accumulated_text and not accumulated_text.endswith("\n"):
+                                accumulated_text += "\n\n"
+                            accumulated_text += new_text
+                            events.push("text", {"text": new_text})
+                            yield StreamEvent(text_so_far=accumulated_text)
+                    elif item_type == "command_execution":
+                        events.push("tool_use", {
+                            "tool": "shell",
+                            "id": item.get("id", ""),
+                            "input": {"command": item.get("command", "")},
+                        })
+                        output = item.get("aggregated_output", "")
+                        if output:
+                            events.push("tool_result", {
+                                "id": item.get("id", ""),
+                                "output": output[:500],
+                                "is_error": item.get("exit_code", 0) != 0,
+                            })
+
+                elif etype == "turn.completed":
+                    usage = event.get("usage", {})
+                    events.push("result", {
+                        "cost": 0,  # Codex doesn't report cost in JSONL
+                        "duration_ms": 0,
+                        "input_tokens": usage.get("input_tokens", 0),
+                        "is_error": False,
+                        "backend": "codex",
+                    })
+
+                elif etype == "turn.failed":
+                    error_msg = str(event.get("error", "Codex turn failed"))
+                    yield StreamEvent(
+                        text_so_far=accumulated_text, done=True,
+                        response=ClaudeResponse(success=False, text=accumulated_text, error=error_msg),
+                    )
+                    return
+
+        except Exception as e:
+            log.exception("Unexpected error reading Codex stream")
+            await self._kill()
+            yield StreamEvent(
+                text_so_far=accumulated_text, done=True,
+                response=ClaudeResponse(success=False, text=accumulated_text, error=str(e)),
+            )
+
     async def _send_locked(self, prompt: str | list) -> AsyncIterator[StreamEvent]:
         """
         Core message-sending logic (must be called while holding self._lock).
@@ -466,6 +658,12 @@ class PersistentClaude:
             StreamEvent objects with accumulated text. The final event has
             done=True and includes the complete ClaudeResponse.
         """
+        # Route to Codex backend if configured
+        if self.backend == "codex":
+            async for event in self._send_codex_locked(prompt):
+                yield event
+            return
+
         try:
             await self._ensure_started()
         except FileNotFoundError:
@@ -488,6 +686,37 @@ class PersistentClaude:
                 did_full_injection = True
 
         self._message_count += 1
+
+        # ── B4: Proactive restart between messages to prevent compaction ──
+        if self._needs_restart and not did_full_injection:
+            log.info("Proactive restart: context window at %d tokens, restarting now", self._last_input_tokens)
+            events.push("system", {"session_id": "", "restart": True, "reason": "proactive_context_cleanup"})
+            await self._kill()
+            self._needs_restart = False
+            self._last_input_tokens = 0
+            await self._ensure_started()
+            self._fresh_session = False
+            self._message_count = 1
+            self._last_pushed_session_id = None
+            parts = self._build_context_injection()
+            if parts:
+                prefix = "\n\n".join(parts) + "\n\n"
+                prompt = self._prepend_to_prompt(prompt, prefix)
+                did_full_injection = True
+
+        # ── B2: Full re-injection if compaction was detected mid-stream ──
+        if self._compacted_mid_stream and not did_full_injection:
+            log.info("Re-injecting full context after mid-stream compaction")
+            self._compacted_mid_stream = False
+            parts = self._build_context_injection()
+            if parts:
+                parts.insert(0,
+                    "[COMPACTION RECOVERY — your context was just compressed mid-response. "
+                    "All core instructions and memory re-injected below.]"
+                )
+                prefix = "\n\n".join(parts) + "\n\n"
+                prompt = self._prepend_to_prompt(prompt, prefix)
+                did_full_injection = True
 
         # ── Per-message injection (survives mid-session compaction) ──
         # If RECOVERY.md exists, compaction happened — do a FULL re-injection
@@ -514,17 +743,45 @@ class PersistentClaude:
             except OSError:
                 pass
         else:
-            # Regular message — inject TASKS.md focus block for orientation
             tasks_path = self.home_workspace / ".memory" / "TASKS.md"
-            if tasks_path.exists() and not did_full_injection:
-                try:
-                    focus = self._extract_tasks_focus(tasks_path.read_text())
-                    if focus:
-                        prompt = self._prepend_to_prompt(prompt,
-                            f"[Current work state:]\n{focus}\n\n"
-                        )
-                except OSError:
-                    pass
+            # B3: Every REFRESH_INTERVAL messages, inject fuller context
+            if (self._message_count % self.REFRESH_INTERVAL == 0) and not did_full_injection:
+                refresh_parts = []
+                if tasks_path.exists():
+                    try:
+                        refresh_parts.append(f"[Current tasks:]\n{tasks_path.read_text().strip()[:2000]}")
+                    except OSError:
+                        pass
+                hacks_path = self.home_workspace / ".claude" / "HACKS.md"
+                if hacks_path.exists():
+                    try:
+                        refresh_parts.append(f"[Workarounds:]\n{hacks_path.read_text().strip()[:1000]}")
+                    except OSError:
+                        pass
+                from datetime import date
+                log_path = self.home_workspace / ".memory" / "logs" / f"{date.today().isoformat()}.md"
+                if log_path.exists():
+                    try:
+                        lines = log_path.read_text().strip().split("\n")
+                        refresh_parts.append(f"[Recent log:]\n" + "\n".join(lines[-10:]))
+                    except OSError:
+                        pass
+                if refresh_parts:
+                    prefix = "[PERIODIC CONTEXT REFRESH — message #{0}:]\n".format(self._message_count)
+                    prefix += "\n\n".join(refresh_parts) + "\n\n"
+                    prompt = self._prepend_to_prompt(prompt, prefix)
+                    log.info("Periodic context refresh at message %d", self._message_count)
+            elif not did_full_injection:
+                # Regular message — inject TASKS.md focus block for orientation
+                if tasks_path.exists():
+                    try:
+                        focus = self._extract_tasks_focus(tasks_path.read_text())
+                        if focus:
+                            prompt = self._prepend_to_prompt(prompt,
+                                f"[Current work state:]\n{focus}\n\n"
+                            )
+                    except OSError:
+                        pass
 
         # When in a foreign workspace, remind on every message to only respond
         # to what the user asks — workspace context (CLAUDE.md, git branch,
@@ -661,7 +918,7 @@ class PersistentClaude:
                                 text_len = len(block.get("text", ""))
                                 log.debug("Claude stream: text block (%d chars)", text_len)
 
-                # Broadcast ALL events to dashboard
+                # Broadcast events to dashboard
                 if etype == "assistant":
                     msg_data = event.get("message", {})
                     if isinstance(msg_data, dict) and "content" in msg_data:
@@ -678,26 +935,81 @@ class PersistentClaude:
                             elif btype == "tool_result":
                                 events.push("tool_result", {
                                     "id": block.get("tool_use_id", ""),
-                                    "output": str(block.get("content", "")),
+                                    "output": str(block.get("content", ""))[:500],
                                     "is_error": block.get("is_error", False),
+                                })
+                            elif btype == "thinking":
+                                events.push("thinking", {
+                                    "thinking": block.get("thinking", block.get("text", "")),
                                 })
                             else:
                                 events.push(btype or "unknown", block)
                     elif isinstance(msg_data, str):
                         events.push("text", {"text": msg_data})
                     else:
-                        # Catch any assistant event shape we didn't expect
                         events.push("raw", {"type": etype, "keys": list(event.keys()), "preview": str(event)[:500]})
+
+                elif etype == "user":
+                    # A2: Parse user events to extract tool_result content blocks
+                    msg_data = event.get("message", {})
+                    if isinstance(msg_data, dict):
+                        content = msg_data.get("content", [])
+                        if isinstance(content, list):
+                            for block in content:
+                                if isinstance(block, dict) and block.get("type") == "tool_result":
+                                    raw_content = block.get("content", "")
+                                    if isinstance(raw_content, list):
+                                        text_parts = [b.get("text", "") for b in raw_content if isinstance(b, dict)]
+                                        output = "\n".join(text_parts)[:500]
+                                    else:
+                                        output = str(raw_content)[:500]
+                                    events.push("tool_result", {
+                                        "id": block.get("tool_use_id", ""),
+                                        "output": output,
+                                        "is_error": block.get("is_error", False),
+                                    })
+
                 elif etype == "result":
+                    # Track token usage for proactive restart (B4)
+                    usage = event.get("usage", {})
+                    input_tokens = usage.get("input_tokens", 0)
+                    if input_tokens > 0:
+                        self._last_input_tokens = input_tokens
+                        max_ctx = self._MAX_CONTEXT.get(self.model, 200_000)
+                        if input_tokens > max_ctx * self.CONTEXT_RESTART_RATIO:
+                            self._needs_restart = True
+                            log.info(
+                                "Context at %d/%d tokens (%.0f%%) — will restart between messages",
+                                input_tokens, max_ctx, 100 * input_tokens / max_ctx,
+                            )
+
                     events.push("result", {
                         "cost": event.get("total_cost_usd", 0),
                         "duration_ms": event.get("duration_ms", 0),
+                        "num_turns": event.get("num_turns", 0),
+                        "input_tokens": input_tokens,
                         "is_error": event.get("is_error", False),
                     })
+
                 elif etype == "system":
-                    events.push("system", {"session_id": event.get("session_id", "")})
+                    sid = event.get("session_id", "")
+                    # A3: Only push system event when session_id actually changes
+                    if sid and sid != self._last_pushed_session_id:
+                        # B2: Detect mid-stream compaction (session ID changes mid-response)
+                        if self._last_pushed_session_id is not None:
+                            self._compacted_mid_stream = True
+                            events.push("compaction", {
+                                "old_session": self._last_pushed_session_id[:8],
+                                "new_session": sid[:8],
+                                "message_count": self._message_count,
+                            })
+                            log.warning(
+                                "Mid-stream compaction detected: session changed %s -> %s",
+                                self._last_pushed_session_id[:8], sid[:8],
+                            )
+                        self._last_pushed_session_id = sid
+                        events.push("system", {"session_id": sid})
                 else:
-                    # Catch ALL other event types we haven't seen before
                     events.push("raw", {"type": etype, "keys": list(event.keys()), "preview": str(event)[:500]})
 
                 if etype == "system":
@@ -706,6 +1018,9 @@ class PersistentClaude:
                         self._session_id = sid
 
                 elif etype == "result":
+                    # Check for proactive restart after this response
+                    if self._needs_restart:
+                        log.info("Proactive restart flagged — will restart after this response completes")
                     # Prefer accumulated_text (which includes text before tool
                     # use) over the result event's text (which may only contain
                     # the final assistant message). Fall back to result_text
@@ -827,6 +1142,7 @@ class PersistentClaude:
                 pass
             self._proc = None
             self._session_id = None
+            self._last_pushed_session_id = None
         if self._stderr_task:
             self._stderr_task.cancel()
             self._stderr_task = None

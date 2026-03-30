@@ -204,11 +204,21 @@ def _chunk_text(text: str, max_len: int = 4096) -> list[str]:
     return chunks
 
 
-async def _send_response(update: Update, text: str) -> None:
-    """Send a potentially long response as multiple chunked messages."""
+async def _send_response(update: Update, text: str, max_retries: int = 3) -> None:
+    """Send a potentially long response as multiple chunked messages with retry."""
     assert update.message is not None
     for chunk in _chunk_text(text):
-        await _reply_safe(update.message, chunk)
+        for attempt in range(max_retries):
+            try:
+                await _reply_safe(update.message, chunk)
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    log.error("Failed to send chunk after %d retries: %s", max_retries, e)
+                    raise
+                wait = 2 ** attempt
+                log.warning("Telegram send failed (attempt %d/%d), retrying in %ds: %s", attempt + 1, max_retries, wait, e)
+                await asyncio.sleep(wait)
 
 
 def _get_claude(context: ContextTypes.DEFAULT_TYPE) -> PersistentClaude:
@@ -1495,6 +1505,55 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             log.info("Response handling complete for chat %s", chat_id)
 
 
+# ── Task auto-pickup ─────────────────────────────────────────────────
+
+
+async def _maybe_pickup_task(claude: PersistentClaude, chat_id: int) -> None:
+    """
+    Check TASKS.md for queued work and send a continuation prompt if idle.
+
+    Only fires when no pending user messages exist and TASKS.md has
+    in-progress or up-next items. Prevents Kai from sitting idle between
+    user messages when there's work to do.
+    """
+    try:
+        pending = await sessions.get_pending_messages(chat_id)
+        if pending:
+            return
+
+        tasks_path = claude.home_workspace / ".memory" / "TASKS.md"
+        if not tasks_path.exists():
+            return
+
+        tasks_text = tasks_path.read_text()
+        has_work = False
+        for marker in ("## In Progress", "## Up Next", "## Dynamic Tasks"):
+            idx = tasks_text.find(marker)
+            if idx < 0:
+                continue
+            section_end = tasks_text.find("\n## ", idx + 1)
+            section = tasks_text[idx:section_end] if section_end > 0 else tasks_text[idx:]
+            if "- [ ]" in section or "- [~]" in section:
+                has_work = True
+                break
+
+        if not has_work:
+            return
+
+        log.info("Auto-pickup: found queued tasks, sending continuation prompt")
+        events.push("system", {"session_id": "", "auto_pickup": True})
+        continuation = (
+            "[AUTO-CONTINUATION: No pending user messages. You have queued tasks. "
+            "Check TASKS.md and continue working on the highest priority item. "
+            "Update TASKS.md as you progress.]"
+        )
+        async for ev in claude.send(continuation):
+            if ev.done:
+                break
+    except Exception:
+        log.exception("Task auto-pickup failed")
+
+
 # ── Streaming response handler ───────────────────────────────────────
 
 
@@ -1659,6 +1718,10 @@ async def _handle_response(
             await context.bot.send_voice(chat_id=chat_id, voice=audio)
         except TTSError as e:
             log.warning("TTS failed: %s", e)
+
+    # D1: Auto-pickup queued tasks when idle
+    if final_response.success and not stopped_by_user:
+        await _maybe_pickup_task(claude, chat_id)
 
 
 # ── Application factory ─────────────────────────────────────────────
