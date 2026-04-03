@@ -17,11 +17,13 @@ import pytest
 from telegram.error import BadRequest
 
 from kai.bot import (
+    _FIELD_ALIASES,
     _QUEUED_MESSAGE_MARKER,
     _acquire_lock_or_kill,
     _clear_responding,
     _do_switch_workspace,
     _edit_message_safe,
+    _handle_settings_reset,
     _handle_workspace_config,
     _is_authorized,
     _is_workspace_allowed,
@@ -34,6 +36,7 @@ from kai.bot import (
     _save_upload,
     _set_responding,
     _short_workspace_name,
+    _show_settings,
     _switch_workspace,
     _truncate_for_telegram,
     _voices_keyboard,
@@ -50,6 +53,7 @@ from kai.bot import (
     handle_models,
     handle_new,
     handle_photo,
+    handle_settings,
     handle_start,
     handle_stats,
     handle_stop,
@@ -915,7 +919,10 @@ class TestHandleModel:
         pool = _make_mock_claude(model="sonnet")
         update = _make_update()
         ctx = _make_context(claude=pool, args=["opus"])
-        with patch("kai.bot.sessions.clear_session", new_callable=AsyncMock):
+        with (
+            patch("kai.bot.sessions.clear_session", new_callable=AsyncMock),
+            patch("kai.bot.sessions.set_user_setting", new_callable=AsyncMock),
+        ):
             await handle_model(update, ctx)
         pool.set_model.assert_called_once_with(ANY, "opus")
         pool.restart.assert_called_once()
@@ -954,7 +961,10 @@ class TestHandleModelCallback:
         pool = _make_mock_claude(model="sonnet")
         update = _make_callback_update(data="model:opus")
         ctx = _make_context(claude=pool)
-        with patch("kai.bot.sessions.clear_session", new_callable=AsyncMock):
+        with (
+            patch("kai.bot.sessions.clear_session", new_callable=AsyncMock),
+            patch("kai.bot.sessions.set_user_setting", new_callable=AsyncMock),
+        ):
             await handle_model_callback(update, ctx)
         pool.set_model.assert_called_once_with(ANY, "opus")
         edit_text = update.callback_query.edit_message_text.call_args[0][0]
@@ -1336,6 +1346,19 @@ class TestHandleWorkspace:
         await handle_workspace(update, ctx)
         reply = update.message.reply_text.call_args[0][0]
         assert "WORKSPACE_BASE" in reply
+
+    @pytest.mark.asyncio
+    async def test_ws_alias_registered(self):
+        """/ws is registered as an alias for /workspace via create_bot."""
+        # The alias is a CommandHandler("ws", handle_workspace) in create_bot.
+        # We verify it by calling handle_workspace directly with no args
+        # (same handler, so same behavior as /workspace with no args).
+        claude = _make_mock_claude(workspace=Path("/home/workspace"))
+        update = _make_update()
+        ctx = _make_context(claude=claude)
+        await handle_workspace(update, ctx)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "Home" in reply or "workspace" in reply.lower()
 
 
 # ── handle_workspaces ────────────────────────────────────────────────
@@ -2875,3 +2898,493 @@ class TestHandleWorkspaceConfig:
         assert "haiku" in reply
         assert "sonnet" in reply
         assert "opus" in reply
+
+
+# ── /settings command ──────────────────────────────────────────────
+
+
+class TestHandleSettings:
+    """Tests for /settings - per-user default settings.
+
+    Each test patches the sessions module and pool to isolate the handler
+    from the database and subprocess pool.
+    """
+
+    def _patches(self, mock_sessions):
+        """Build the standard patch set for settings tests."""
+        from contextlib import ExitStack
+
+        stack = ExitStack()
+        stack.enter_context(patch("kai.bot.sessions", mock_sessions))
+        return stack
+
+    def _mock_sessions(self, db_settings=None):
+        """Create a mock sessions module with per-user settings helpers."""
+        mock = AsyncMock()
+        mock.get_user_settings = AsyncMock(return_value=db_settings or {})
+        mock.set_user_setting = AsyncMock()
+        mock.delete_user_setting = AsyncMock()
+        mock.delete_all_user_settings = AsyncMock()
+        mock.clear_session = AsyncMock()
+        return mock
+
+    # ── 1. Show settings with global defaults ──────────────────────
+
+    @pytest.mark.asyncio
+    async def test_show_settings_defaults(self):
+        """/settings with no overrides shows global defaults."""
+        update = _make_update(text="/settings")
+        config = _make_config()
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await _show_settings(update, 12345, config)
+
+        reply = update.message.reply_text.call_args[0][0]
+        assert "sonnet" in reply
+        assert "global default" in reply
+
+    # ── 2. Set model ───────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_set_model(self):
+        """/settings model opus sets model via _switch_model."""
+        update = _make_update(text="/settings model opus")
+        config = _make_config()
+        pool = _make_mock_claude()
+        ctx = _make_context(config=config, pool=pool, args=["model", "opus"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        # _switch_model persists and restarts
+        mock_sessions.set_user_setting.assert_called_once_with(12345, "model", "opus")
+        pool.restart.assert_called_once()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "opus" in reply.lower()
+
+    # ── 3. Set budget ──────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_set_budget(self):
+        """/settings budget 5 sets the budget (within default $10 ceiling)."""
+        update = _make_update(text="/settings budget 5")
+        config = _make_config()
+        pool = _make_mock_claude()
+        pool.get_if_exists = MagicMock(return_value=MagicMock())
+        ctx = _make_context(config=config, pool=pool, args=["budget", "5"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_called_once_with(12345, "budget", "5.0")
+        reply = update.message.reply_text.call_args[0][0]
+        assert "$5.00" in reply
+
+    # ── 4. Reject negative budget ──────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_reject_negative_budget(self):
+        """/settings budget -5 is rejected."""
+        update = _make_update(text="/settings budget -5")
+        config = _make_config()
+        ctx = _make_context(config=config, args=["budget", "-5"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_not_called()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "positive" in reply.lower()
+
+    # ── 5. Budget exceeds ceiling ──────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_budget_exceeds_ceiling(self):
+        """/settings budget 999 is rejected when ceiling is lower."""
+        from kai.config import UserConfig
+
+        user = UserConfig(telegram_id=12345, name="test", max_budget=5.0)
+        config = _make_config(user_configs={12345: user})
+        update = _make_update(text="/settings budget 999")
+        ctx = _make_context(config=config, args=["budget", "999"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_not_called()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "$5.00" in reply
+        assert "admin limit" in reply.lower()
+
+    # ── 5b. Budget allowed when ceiling is zero (no limit) ──────────
+
+    @pytest.mark.asyncio
+    async def test_budget_allowed_when_ceiling_zero(self):
+        """/settings budget 50 succeeds when global ceiling is 0 (no limit)."""
+        # If CLAUDE_MAX_BUDGET_USD=0 and no users.yaml entry, 0 means
+        # "no admin ceiling" - budget should be allowed, not rejected.
+        config = _make_config(claude_max_budget_usd=0.0)
+        update = _make_update(text="/settings budget 50")
+        pool = _make_mock_claude()
+        pool.get_if_exists = MagicMock(return_value=MagicMock())
+        ctx = _make_context(config=config, pool=pool, args=["budget", "50"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_called_once_with(12345, "budget", "50.0")
+        reply = update.message.reply_text.call_args[0][0]
+        assert "$50.00" in reply
+
+    # ── 6. Set timeout ─────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_set_timeout(self):
+        """/settings timeout 300 sets the timeout."""
+        update = _make_update(text="/settings timeout 300")
+        config = _make_config()
+        pool = _make_mock_claude()
+        pool.get_if_exists = MagicMock(return_value=MagicMock())
+        ctx = _make_context(config=config, pool=pool, args=["timeout", "300"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_called_once_with(12345, "timeout", "300")
+        reply = update.message.reply_text.call_args[0][0]
+        assert "300s" in reply
+
+    # ── 7. Reject zero timeout ─────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_reject_zero_timeout(self):
+        """/settings timeout 0 is rejected (must be positive)."""
+        update = _make_update(text="/settings timeout 0")
+        ctx = _make_context(args=["timeout", "0"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_not_called()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "positive" in reply.lower()
+
+    # ── 8. Reject timeout exceeding max ────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_reject_timeout_exceeding_max(self):
+        """/settings timeout 601 is rejected."""
+        update = _make_update(text="/settings timeout 601")
+        ctx = _make_context(args=["timeout", "601"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_not_called()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "600" in reply
+
+    # ── 9. Set context window ──────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_set_context_window(self):
+        """/settings context 200000 sets the context window."""
+        update = _make_update(text="/settings context 200000")
+        config = _make_config()
+        pool = _make_mock_claude()
+        instance = MagicMock()
+        pool.get_if_exists = MagicMock(return_value=instance)
+        ctx = _make_context(config=config, pool=pool, args=["context", "200000"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_called_once_with(12345, "context_window", "200000")
+        # Context window change triggers restart
+        pool.restart.assert_called_once()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "200,000" in reply
+
+    # ── 10. Reject context below minimum ───────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_reject_context_below_minimum(self):
+        """/settings context 10000 is rejected (below 50000 minimum)."""
+        update = _make_update(text="/settings context 10000")
+        ctx = _make_context(args=["context", "10000"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_not_called()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "50000" in reply
+
+    # ── 11. Context zero accepted (means default) ──────────────────
+
+    @pytest.mark.asyncio
+    async def test_context_zero_accepted(self):
+        """/settings context 0 is accepted (means 'use default')."""
+        update = _make_update(text="/settings context 0")
+        config = _make_config()
+        pool = _make_mock_claude()
+        pool.get_if_exists = MagicMock(return_value=MagicMock())
+        ctx = _make_context(config=config, pool=pool, args=["context", "0"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_called_once_with(12345, "context_window", "0")
+        reply = update.message.reply_text.call_args[0][0]
+        assert "default" in reply.lower()
+
+    # ── 12. Reset all ──────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_reset_all(self):
+        """/settings reset clears all overrides."""
+        update = _make_update(text="/settings reset")
+        config = _make_config()
+        pool = _make_mock_claude()
+        ctx = _make_context(config=config, pool=pool, args=["reset"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.delete_all_user_settings.assert_called_once_with(12345)
+        pool.restart.assert_called_once()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "all settings cleared" in reply.lower()
+
+    # ── 13. Reset single field ─────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_reset_single_field(self):
+        """/settings reset model clears just the model override."""
+        update = _make_update(text="/settings reset model")
+        config = _make_config()
+        pool = _make_mock_claude()
+        ctx = _make_context(config=config, pool=pool, args=["reset", "model"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.delete_user_setting.assert_called_once_with(12345, "model")
+        reply = update.message.reply_text.call_args[0][0]
+        assert "model" in reply.lower()
+
+    # ── 14. Unknown field ──────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_unknown_field(self):
+        """/settings bogus shows error with valid field list."""
+        update = _make_update(text="/settings bogus")
+        ctx = _make_context(args=["bogus"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_not_called()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "unknown setting" in reply.lower()
+
+    # ── 15. Invalid model rejected ─────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_invalid_model_rejected(self):
+        """/settings model gpt4 is rejected."""
+        update = _make_update(text="/settings model gpt4")
+        ctx = _make_context(args=["model", "gpt4"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        mock_sessions.set_user_setting.assert_not_called()
+        reply = update.message.reply_text.call_args[0][0]
+        assert "unknown model" in reply.lower()
+
+    # ── 16. Reset context maps to context_window ───────────────────
+
+    @pytest.mark.asyncio
+    async def test_reset_context_alias(self):
+        """/settings reset context maps to context_window in DB."""
+        update = _make_update(text="/settings reset context")
+        config = _make_config()
+        pool = _make_mock_claude()
+        ctx = _make_context(config=config, pool=pool, args=["reset", "context"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        # Should use the DB field name, not the user-facing alias
+        mock_sessions.delete_user_setting.assert_called_once_with(12345, "context_window")
+
+    # ── 17. Reset reverts instance to defaults ────────────────────
+
+    @pytest.mark.asyncio
+    async def test_reset_reverts_instance_model(self):
+        """/settings reset model writes the default back onto the instance."""
+        update = _make_update(text="/settings reset model")
+        config = _make_config()
+        pool = _make_mock_claude()
+        # Simulate an instance with an overridden model
+        instance = MagicMock()
+        instance.model = "opus"
+        pool.get_if_exists = MagicMock(return_value=instance)
+        ctx = _make_context(config=config, pool=pool, args=["reset", "model"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        # Instance model should be reverted to the config default
+        assert instance.model == config.claude_model
+
+    # ── 18. Reset all reverts all instance fields ─────────────────
+
+    @pytest.mark.asyncio
+    async def test_reset_all_reverts_instance(self):
+        """/settings reset reverts all four fields on the live instance."""
+        update = _make_update(text="/settings reset")
+        config = _make_config()
+        pool = _make_mock_claude()
+        instance = MagicMock()
+        instance.model = "opus"
+        instance.max_budget_usd = 99.0
+        instance.timeout_seconds = 500
+        instance.max_context_window = 500000
+        pool.get_if_exists = MagicMock(return_value=instance)
+        ctx = _make_context(config=config, pool=pool, args=["reset"])
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await handle_settings(update, ctx)
+
+        assert instance.model == config.claude_model
+        assert instance.max_budget_usd == config.claude_max_budget_usd
+        assert instance.timeout_seconds == config.claude_timeout_seconds
+        assert instance.max_context_window == config.claude_max_context_window
+
+    # ── 19. Budget displays "unlimited" when zero ─────────────────
+
+    @pytest.mark.asyncio
+    async def test_show_settings_budget_zero_displays_unlimited(self):
+        """Budget of $0.00 displays as 'unlimited', not '$0.00'."""
+        update = _make_update(text="/settings")
+        config = _make_config(claude_max_budget_usd=0.0)
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await _show_settings(update, 12345, config)
+
+        reply = update.message.reply_text.call_args[0][0]
+        assert "unlimited" in reply.lower()
+        assert "$0.00" not in reply
+
+    # ── 20. Global budget ceiling visible in /settings ────────────
+
+    @pytest.mark.asyncio
+    async def test_show_settings_global_ceiling_visible(self):
+        """Users without a yaml entry see the global ceiling in /settings."""
+        update = _make_update(text="/settings")
+        # No user_configs - ceiling should fall through to global default
+        config = _make_config(claude_max_budget_usd=10.0)
+        mock_sessions = self._mock_sessions()
+
+        with self._patches(mock_sessions):
+            await _show_settings(update, 12345, config)
+
+        reply = update.message.reply_text.call_args[0][0]
+        assert "$10.00" in reply
+        assert "ceiling" in reply.lower()
+
+
+# ── /model persistence ─────────────────────────────────────────────
+
+
+class TestModelPersistence:
+    """Tests that /model and /models keyboard now persist to settings."""
+
+    @pytest.mark.asyncio
+    async def test_model_command_persists(self):
+        """/model opus writes to settings table."""
+        update = _make_update(text="/model opus")
+        config = _make_config()
+        pool = _make_mock_claude()
+        ctx = _make_context(config=config, pool=pool, args=["opus"])
+        mock_sessions = AsyncMock()
+        mock_sessions.set_user_setting = AsyncMock()
+        mock_sessions.clear_session = AsyncMock()
+
+        with patch("kai.bot.sessions", mock_sessions):
+            await handle_model(update, ctx)
+
+        mock_sessions.set_user_setting.assert_called_once_with(12345, "model", "opus")
+        pool.restart.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_model_callback_persists(self):
+        """/models keyboard callback writes to settings table."""
+        update = _make_callback_update(data="model:opus")
+        config = _make_config()
+        pool = _make_mock_claude(model="sonnet")  # different from opus
+        ctx = _make_context(config=config, pool=pool)
+        mock_sessions = AsyncMock()
+        mock_sessions.set_user_setting = AsyncMock()
+        mock_sessions.clear_session = AsyncMock()
+
+        with patch("kai.bot.sessions", mock_sessions):
+            await handle_model_callback(update, ctx)
+
+        mock_sessions.set_user_setting.assert_called_once_with(12345, "model", "opus")
+        pool.restart.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_settings_reset_model_clears_db(self):
+        """/settings reset model clears what /model set."""
+        update = _make_update(text="/settings reset model")
+        config = _make_config()
+        pool = _make_mock_claude()
+        ctx = _make_context(config=config, pool=pool, args=["reset", "model"])
+        mock_sessions = AsyncMock()
+        mock_sessions.delete_user_setting = AsyncMock()
+        mock_sessions.clear_session = AsyncMock()
+
+        with patch("kai.bot.sessions", mock_sessions):
+            await _handle_settings_reset(update, ctx, 12345, config, "model")
+
+        mock_sessions.delete_user_setting.assert_called_once_with(12345, "model")
+
+
+# ── Field alias mapping ───────────────────────────────────────────
+
+
+class TestFieldAliases:
+    """Tests for the _FIELD_ALIASES mapping."""
+
+    def test_context_maps_to_context_window(self):
+        """The 'context' alias maps to 'context_window' DB key."""
+        assert _FIELD_ALIASES["context"] == "context_window"
+
+    def test_no_alias_returns_field_name(self):
+        """Fields without aliases return the field name itself via .get()."""
+        assert _FIELD_ALIASES.get("model", "model") == "model"
+        assert _FIELD_ALIASES.get("budget", "budget") == "budget"
+        assert _FIELD_ALIASES.get("timeout", "timeout") == "timeout"

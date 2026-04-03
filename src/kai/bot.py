@@ -53,7 +53,7 @@ from telegram.ext import (
 )
 
 from kai import services, sessions, webhook
-from kai.config import DATA_DIR, Config, WorkspaceConfig
+from kai.config import DATA_DIR, MAX_CONTEXT_CEILING, VALID_MODELS, Config, WorkspaceConfig
 from kai.history import log_message
 from kai.locks import get_lock, get_stop_event
 from kai.pool import SubprocessPool
@@ -346,9 +346,9 @@ async def handle_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 # Keys must match VALID_MODELS in config.py (the single source of truth
 # for valid model identifiers). Values are display names for Telegram.
 _AVAILABLE_MODELS = {
-    "opus": "\U0001f9e0 Claude Opus 4.6",
-    "sonnet": "\u26a1 Claude Sonnet 4.5",
-    "haiku": "\U0001fab6 Claude Haiku 4.5",
+    "opus": "\U0001f9e0 Claude Opus",
+    "sonnet": "\u26a1 Claude Sonnet",
+    "haiku": "\U0001fab6 Claude Haiku",
 }
 
 
@@ -374,12 +374,17 @@ async def handle_models(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def _switch_model(context: ContextTypes.DEFAULT_TYPE, chat_id: int, model: str) -> None:
     """
-    Switch the Claude model, restart the process, and clear the session.
+    Switch the Claude model, persist the choice, restart the process,
+    and clear the session.
 
-    Called by both the inline keyboard callback and the /model text command.
+    Called by the inline keyboard callback, /model text command, and
+    /settings model handler. The model choice is written to the DB so
+    it survives restarts (behavior change from session-only).
     """
     pool = _get_pool(context)
     pool.set_model(chat_id, model)
+    # Persist to settings table so the choice survives restarts
+    await sessions.set_user_setting(chat_id, "model", model)
     await pool.restart(chat_id)
     await sessions.clear_session(chat_id)
 
@@ -431,6 +436,315 @@ async def handle_model(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     await _switch_model(context, _chat_id(update), model)
     await update.message.reply_text(f"Model set to {_AVAILABLE_MODELS[model]}. Session restarted.")
+
+
+# ── Per-user settings ──────────────────────────────────────────────
+
+# Map user-facing field names to DB storage keys. "context" is the
+# user-facing name; "context_window" is the DB key. Defined once so
+# the mapping isn't scattered across set/reset/display handlers.
+_FIELD_ALIASES: dict[str, str] = {"context": "context_window"}
+
+
+@_require_auth
+async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle /settings - view or modify per-user default settings.
+
+    Dispatches to show, set, or reset based on arguments. Settings
+    persist in the database and survive restarts.
+    """
+    assert update.message is not None
+    chat_id = _chat_id(update)
+    config: Config = context.bot_data["config"]
+
+    # Parse: "/settings [field] [value...]"
+    args = context.args or []
+    field = args[0].lower() if args else None
+    value = args[1] if len(args) > 1 else None
+
+    # /settings - show current
+    if field is None:
+        await _show_settings(update, chat_id, config)
+        return
+
+    # /settings reset [field]
+    if field == "reset":
+        await _handle_settings_reset(update, context, chat_id, config, value)
+        return
+
+    # /settings model <name>
+    if field == "model":
+        if not value:
+            await update.message.reply_text("Usage: /settings model <haiku|sonnet|opus>")
+            return
+        if value.lower() not in VALID_MODELS:
+            await update.message.reply_text(f"Unknown model. Choose from: {', '.join(sorted(VALID_MODELS))}")
+            return
+        # Funnel through _switch_model() - same path as /model and /models
+        # keyboard. _switch_model() handles DB write, instance update,
+        # process restart, and session clear.
+        model_key = value.lower()
+        await _switch_model(context, chat_id, model_key)
+        display = _AVAILABLE_MODELS.get(model_key, model_key)
+        await update.message.reply_text(f"Default model set to {display}. Session restarted.")
+        return
+
+    # /settings budget <n>
+    if field == "budget":
+        if not value:
+            await update.message.reply_text("Usage: /settings budget <amount>")
+            return
+        try:
+            budget = float(value)
+            if budget <= 0 or not math.isfinite(budget):
+                raise ValueError
+        except ValueError:
+            await update.message.reply_text("Budget must be a positive number.")
+            return
+        # Enforce ceiling: users.yaml max_budget or global default.
+        # 0 means "no admin ceiling" (e.g., CLAUDE_MAX_BUDGET_USD unset
+        # or explicitly 0). Only enforce when a positive ceiling exists.
+        user_config = config.get_user_config(chat_id)
+        ceiling = (
+            user_config.max_budget
+            if user_config and user_config.max_budget is not None
+            else config.claude_max_budget_usd
+        )
+        if ceiling and budget > ceiling:
+            await update.message.reply_text(f"Budget cannot exceed ${ceiling:.2f} (admin limit).")
+            return
+        await sessions.set_user_setting(chat_id, "budget", str(budget))
+        # Apply to running instance if one exists. Don't use pool.get()
+        # here - it would create a new instance just to set an attribute.
+        pool = _get_pool(context)
+        instance = pool.get_if_exists(chat_id)
+        if instance:
+            instance.max_budget_usd = budget
+        await update.message.reply_text(f"Default budget set to ${budget:.2f}.")
+        return
+
+    # /settings timeout <n>
+    if field == "timeout":
+        if not value:
+            await update.message.reply_text("Usage: /settings timeout <seconds>")
+            return
+        try:
+            timeout = int(value)
+            if timeout <= 0:
+                raise ValueError
+        except ValueError:
+            await update.message.reply_text("Timeout must be a positive integer (seconds).")
+            return
+        # Cap at 600s (10 minutes). The real cost guard is the budget
+        # ceiling; this cap prevents a single stuck request from holding
+        # the per-chat lock indefinitely.
+        if timeout > 600:
+            await update.message.reply_text("Timeout cannot exceed 600 seconds.")
+            return
+        await sessions.set_user_setting(chat_id, "timeout", str(timeout))
+        # Apply to running instance if one exists (same rationale as budget)
+        pool = _get_pool(context)
+        instance = pool.get_if_exists(chat_id)
+        if instance:
+            instance.timeout_seconds = timeout
+        await update.message.reply_text(f"Default timeout set to {timeout}s.")
+        return
+
+    # /settings context <n>
+    if field == "context":
+        if not value:
+            await update.message.reply_text("Usage: /settings context <tokens>")
+            return
+        try:
+            ctx = int(value)
+            if ctx < 0:
+                raise ValueError
+        except ValueError:
+            await update.message.reply_text("Context window must be a non-negative integer.")
+            return
+        if ctx != 0 and ctx < 50000:
+            await update.message.reply_text("Context window must be at least 50000 tokens (or 0 for default).")
+            return
+        if ctx > MAX_CONTEXT_CEILING:
+            await update.message.reply_text(f"Context window cannot exceed {MAX_CONTEXT_CEILING} tokens.")
+            return
+        await sessions.set_user_setting(chat_id, "context_window", str(ctx))
+        # Context window is a CLI flag baked in at process startup
+        # (passed via --settings). Must restart to take effect.
+        pool = _get_pool(context)
+        instance = pool.get_if_exists(chat_id)
+        restarted = False
+        if instance:
+            instance.max_context_window = ctx
+            await pool.restart(chat_id)
+            await sessions.clear_session(chat_id)
+            restarted = True
+        label = f"{ctx:,} tokens" if ctx > 0 else "default"
+        suffix = " Session restarted." if restarted else ""
+        await update.message.reply_text(f"Context window set to {label}.{suffix}")
+        return
+
+    await update.message.reply_text(f"Unknown setting: {field}\nSettings: model, budget, timeout, context, reset")
+
+
+async def _show_settings(update: Update, chat_id: int, config: Config) -> None:
+    """Display the user's effective settings with source attribution."""
+    assert update.message is not None
+    db_settings = await sessions.get_user_settings(chat_id)
+    user_config = config.get_user_config(chat_id)
+
+    def _resolve(db_key: str, yaml_val: object, global_val: object, fmt: object) -> tuple[str, str]:
+        """Resolve effective value and source for a setting."""
+        # Wrap fmt in try/except so a corrupt DB row doesn't crash the
+        # display command. Matches the defensive parsing in _restore_workspace.
+        if db_key in db_settings:
+            try:
+                return fmt(db_settings[db_key]), "user override"  # type: ignore[operator]
+            except (ValueError, TypeError):
+                pass  # fall through to yaml/global
+        if yaml_val is not None:
+            return fmt(yaml_val), "users.yaml"  # type: ignore[operator]
+        return fmt(global_val), "global default"  # type: ignore[operator]
+
+    # Model
+    yaml_model = user_config.model if user_config else None
+    model, model_src = _resolve("model", yaml_model, config.claude_model, str)
+
+    # Budget - 0 means "unlimited" (consistent with the ceiling check
+    # in the budget handler, where 0 = no ceiling).
+    yaml_budget = user_config.max_budget if user_config else None
+    budget, budget_src = _resolve(
+        "budget",
+        yaml_budget,
+        config.claude_max_budget_usd,
+        lambda v: "unlimited" if float(v) == 0 else f"${float(v):.2f}",
+    )
+
+    # Timeout
+    yaml_timeout = user_config.timeout if user_config else None
+    timeout, timeout_src = _resolve("timeout", yaml_timeout, config.claude_timeout_seconds, lambda v: f"{int(v)}s")
+
+    # Context window - handled separately from _resolve() because 0 has
+    # special display semantics ("default" instead of "0 tokens") and
+    # resolve_user_defaults() doesn't expose source attribution strings.
+    yaml_ctx = user_config.context_window if user_config else None
+    ctx_from_db = False
+    try:
+        if "context_window" in db_settings:
+            ctx_val = int(db_settings["context_window"])
+            ctx_from_db = True
+        elif yaml_ctx is not None:
+            ctx_val = yaml_ctx
+        else:
+            ctx_val = config.claude_max_context_window
+    except (ValueError, TypeError):
+        # Corrupt DB value - fall through to yaml/global
+        ctx_val = yaml_ctx if yaml_ctx is not None else config.claude_max_context_window
+    # Source attribution. When the user explicitly sets context to 0
+    # (meaning "use the Claude Code default"), show "global default"
+    # instead of "user override" - the intent was to revert, not override.
+    # ctx_from_db is False after a corrupt DB parse, so attribution stays
+    # correct on fallback (unlike checking "context_window" in db_settings).
+    if ctx_from_db and ctx_val > 0:
+        ctx_src = "user override"
+    elif not ctx_from_db and yaml_ctx is not None:
+        ctx_src = "users.yaml"
+    else:
+        ctx_src = "global default"
+    ctx_label = f"{ctx_val:,} tokens" if ctx_val > 0 else "default"
+
+    # Budget ceiling - show when a positive ceiling exists so the user
+    # knows their limit before hitting it. Falls through to the global
+    # default when no users.yaml entry exists. 0 = no limit, suppress.
+    ceiling = (
+        user_config.max_budget
+        if user_config and user_config.max_budget is not None
+        else config.claude_max_budget_usd or None  # 0 means no limit
+    )
+    ceiling_line = f"\n\nBudget ceiling: ${ceiling:.2f} (admin)" if ceiling else ""
+
+    await update.message.reply_text(
+        f"Your settings:\n"
+        f"  Model: {model} ({model_src})\n"
+        f"  Budget: {budget} ({budget_src})\n"
+        f"  Timeout: {timeout} ({timeout_src})\n"
+        f"  Context: {ctx_label} ({ctx_src})"
+        f"{ceiling_line}"
+    )
+
+
+def _revert_instance_field(pool: SubprocessPool, chat_id: int, field: str, config: Config) -> None:
+    """
+    Write the resolved default value for a single field back onto the
+    live PersistentClaude instance.
+
+    Called before restart so that stale in-memory overrides don't
+    persist after a DB entry is deleted. Resolution order mirrors
+    _create_instance(): users.yaml > global config.
+    """
+    instance = pool.get_if_exists(chat_id)
+    if not instance:
+        return
+    user = config.get_user_config(chat_id)
+    if field == "model":
+        instance.model = user.model if user and user.model else config.claude_model
+    elif field == "budget":
+        instance.max_budget_usd = (
+            user.max_budget if user and user.max_budget is not None else config.claude_max_budget_usd
+        )
+    elif field == "timeout":
+        instance.timeout_seconds = user.timeout if user and user.timeout is not None else config.claude_timeout_seconds
+    elif field == "context_window":
+        instance.max_context_window = (
+            user.context_window if user and user.context_window is not None else config.claude_max_context_window
+        )
+
+
+async def _handle_settings_reset(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    config: Config,
+    field: str | None,
+) -> None:
+    """
+    Handle /settings reset [field].
+
+    Always restarts the process even for non-flag settings (budget,
+    timeout) where a restart isn't strictly necessary. The simplicity
+    of "reset always restarts" outweighs the minor overhead of one
+    extra process restart during an infrequent operation.
+    """
+    assert update.message is not None
+    valid_fields = {"model", "budget", "timeout", "context"}
+
+    if field:
+        field = field.lower()
+        if field not in valid_fields:
+            await update.message.reply_text(f"Unknown field: {field}\nFields: {', '.join(sorted(valid_fields))}")
+            return
+        # Resolve alias (e.g., "context" -> "context_window")
+        db_field = _FIELD_ALIASES.get(field, field)
+        await sessions.delete_user_setting(chat_id, db_field)
+        pool = _get_pool(context)
+        # Write the resolved default back onto the live instance before
+        # restarting. restart() preserves the Python object, so stale
+        # in-memory attributes would persist without this step.
+        _revert_instance_field(pool, chat_id, db_field, config)
+        await pool.restart(chat_id)
+        await sessions.clear_session(chat_id)
+        await update.message.reply_text(f"Cleared {field} override. Using default. Session restarted.")
+    else:
+        await sessions.delete_all_user_settings(chat_id)
+        pool = _get_pool(context)
+        # Revert all four fields to their resolved defaults before
+        # restarting (same rationale as single-field reset above).
+        for f in ("model", "budget", "timeout", "context_window"):
+            _revert_instance_field(pool, chat_id, f, config)
+        await pool.restart(chat_id)
+        await sessions.clear_session(chat_id)
+        await update.message.reply_text("All settings cleared. Using defaults. Session restarted.")
 
 
 # ── Voice TTS ────────────────────────────────────────────────────────
@@ -944,8 +1258,6 @@ async def _handle_workspace_config(
         if not value:
             await update.message.reply_text("Usage: /workspace config model <haiku|sonnet|opus>")
             return
-        from kai.config import VALID_MODELS
-
         if value.lower() not in VALID_MODELS:
             await update.message.reply_text(f"Unknown model. Choose from: {', '.join(sorted(VALID_MODELS))}")
             return
@@ -961,20 +1273,20 @@ async def _handle_workspace_config(
             return
         try:
             budget = float(value)
-            if budget <= 0:
+            if budget <= 0 or not math.isfinite(budget):
                 raise ValueError
         except ValueError:
             await update.message.reply_text("Budget must be a positive number.")
             return
         # Enforce ceiling: per-user max_budget from users.yaml, or the
-        # global claude_max_budget_usd as fallback.
+        # global claude_max_budget_usd as fallback. 0 = no ceiling.
         user_config = config.get_user_config(chat_id)
         ceiling = (
             user_config.max_budget
             if user_config and user_config.max_budget is not None
             else config.claude_max_budget_usd
         )
-        if budget > ceiling:
+        if ceiling and budget > ceiling:
             await update.message.reply_text(f"Budget cannot exceed ${ceiling:.2f} (admin limit).")
             return
         await sessions.set_workspace_config_setting(chat_id, workspace_str, "budget", str(budget))
@@ -1512,13 +1824,16 @@ async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await update.message.reply_text(
         "/stop - Interrupt current response\n"
         "/new - Start a fresh session\n"
-        "/workspace - Show current workspace\n"
+        "/workspace (or /ws) - Show current workspace\n"
         "/workspace <name> - Switch by name\n"
         "/workspace new <name> - Create + git init + switch\n"
         "/workspace home - Return to default\n"
         "/workspaces - Switch workspace (inline buttons)\n"
+        "/settings - Show your settings\n"
+        "/settings <field> <value> - Change a setting\n"
+        "/settings reset - Clear all overrides\n"
         "/models - Choose a model\n"
-        "/model <name> - Switch model directly\n"
+        "/model <name> - Switch model (persists)\n"
         "/voice - Toggle voice on/off\n"
         "/voice only - Voice only (no text)\n"
         "/voice on - Text + voice\n"
@@ -2305,7 +2620,9 @@ def create_bot(config: Config, *, use_webhook: bool = True) -> Application:
     app.add_handler(CommandHandler("help", handle_help))
     app.add_handler(CommandHandler("jobs", handle_jobs))
     app.add_handler(CommandHandler("canceljob", handle_canceljob))
+    app.add_handler(CommandHandler("settings", handle_settings))
     app.add_handler(CommandHandler("workspace", handle_workspace))
+    app.add_handler(CommandHandler("ws", handle_workspace))
     app.add_handler(CommandHandler("workspaces", handle_workspaces))
     app.add_handler(CommandHandler("voice", handle_voice_command))
     app.add_handler(CommandHandler("voices", handle_voices))
