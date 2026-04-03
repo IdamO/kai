@@ -24,10 +24,17 @@ All functions use a module-level aiosqlite connection initialized by init_db()
 at startup. The database file is kai.db at the project root.
 """
 
+from __future__ import annotations
+
+import json
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import aiosqlite
+
+if TYPE_CHECKING:
+    from kai.config import WorkspaceConfig
 
 log = logging.getLogger(__name__)
 
@@ -456,6 +463,141 @@ async def delete_setting(key: str) -> None:
     """Remove a setting by key. No-op if the key doesn't exist."""
     await _get_db().execute("DELETE FROM settings WHERE key = ?", (key,))
     await _get_db().commit()
+
+
+# ── Workspace config overrides ─────────────────────────────────────
+# Per-user-per-workspace settings stored in the generic settings table.
+# Keys are namespaced as ws_config:{chat_id}:{workspace_path}:{field}.
+# Each user has independent overrides, so User A can set opus on a repo
+# while User B uses sonnet on the same repo.
+
+
+async def get_workspace_config_settings(chat_id: int, workspace_path: str) -> dict[str, str]:
+    """
+    Get all config overrides for a user's workspace.
+
+    Returns a dict of field->value pairs (e.g., {"model": "opus",
+    "budget": "20.0"}). Values are strings; callers parse as needed.
+    Config is per-user-per-workspace: each user has independent overrides.
+    """
+    # Use SUBSTR for exact prefix matching instead of LIKE, which
+    # treats underscores in filesystem paths as single-char wildcards.
+    prefix = f"ws_config:{chat_id}:{workspace_path}:"
+    prefix_len = len(prefix)
+    async with _get_db().execute(
+        "SELECT key, value FROM settings WHERE SUBSTR(key, 1, ?) = ?",
+        (prefix_len, prefix),
+    ) as cursor:
+        rows = await cursor.fetchall()
+        return {row["key"][prefix_len:]: row["value"] for row in rows}
+
+
+async def set_workspace_config_setting(chat_id: int, workspace_path: str, field: str, value: str) -> None:
+    """Set a single workspace config field for this user."""
+    key = f"ws_config:{chat_id}:{workspace_path}:{field}"
+    await set_setting(key, value)
+
+
+async def delete_workspace_config_setting(chat_id: int, workspace_path: str, field: str) -> None:
+    """Remove a single workspace config field override for this user."""
+    key = f"ws_config:{chat_id}:{workspace_path}:{field}"
+    await delete_setting(key)
+
+
+async def delete_all_workspace_config(chat_id: int, workspace_path: str) -> None:
+    """Remove all config overrides for this user's workspace."""
+    # Use SUBSTR for exact prefix matching instead of LIKE, which
+    # treats underscores in filesystem paths as single-char wildcards.
+    prefix = f"ws_config:{chat_id}:{workspace_path}:"
+    await _get_db().execute(
+        "DELETE FROM settings WHERE SUBSTR(key, 1, ?) = ?",
+        (len(prefix), prefix),
+    )
+    await _get_db().commit()
+
+
+# ── Workspace config merge ─────────────────────────────────────────
+
+
+async def build_workspace_config(
+    yaml_config: WorkspaceConfig | None,
+    workspace_path: Path,
+    chat_id: int,
+) -> WorkspaceConfig | None:
+    """
+    Build a WorkspaceConfig by layering database overrides on top of
+    the YAML baseline.
+
+    Precedence (highest to lowest):
+    1. Database settings (per-user, set via /workspace config)
+    2. workspaces.yaml (admin-set via file)
+    3. Global defaults (from .env / Config)
+
+    Returns None if neither YAML nor database config exists for this
+    workspace (caller uses global defaults).
+
+    The WorkspaceConfig import is deferred to avoid a circular dependency
+    (config.py does not import sessions.py; this direction is safe).
+    """
+    from kai.config import WorkspaceConfig
+
+    db_settings = await get_workspace_config_settings(chat_id, str(workspace_path))
+
+    if not db_settings and yaml_config is None:
+        return None
+
+    # Start from YAML baseline or empty defaults
+    model = yaml_config.model if yaml_config else None
+    budget = yaml_config.budget if yaml_config else None
+    timeout = yaml_config.timeout if yaml_config else None
+    env = dict(yaml_config.env) if yaml_config and yaml_config.env else None
+    env_file = yaml_config.env_file if yaml_config else None
+    system_prompt = yaml_config.system_prompt if yaml_config else None
+    system_prompt_file = yaml_config.system_prompt_file if yaml_config else None
+    path = yaml_config.path if yaml_config else workspace_path
+
+    # Layer database overrides
+    if "model" in db_settings:
+        model = db_settings["model"]
+    if "budget" in db_settings:
+        try:
+            budget = float(db_settings["budget"])
+        except (ValueError, TypeError):
+            log.warning("Corrupt budget in DB for chat %d workspace %s", chat_id, workspace_path)
+    if "timeout" in db_settings:
+        try:
+            timeout = int(db_settings["timeout"])
+        except (ValueError, TypeError):
+            log.warning("Corrupt timeout in DB for chat %d workspace %s", chat_id, workspace_path)
+    if "env" in db_settings:
+        # DB env vars merge on top of YAML env vars (not replace).
+        # This lets admins set baseline env vars in YAML and users
+        # add their own without losing the baseline.
+        try:
+            db_env = json.loads(db_settings["env"])
+        except json.JSONDecodeError:
+            log.warning("Corrupt env JSON in DB for chat %d workspace %s", chat_id, workspace_path)
+            db_env = {}
+        if env is None:
+            env = db_env
+        else:
+            env.update(db_env)
+    if "prompt" in db_settings:
+        # DB prompt replaces YAML prompt entirely (not merged).
+        system_prompt = db_settings["prompt"]
+        # Clear file-based prompt since inline takes priority
+        system_prompt_file = None
+
+    return WorkspaceConfig(
+        path=path,
+        model=model,
+        budget=budget,
+        timeout=timeout,
+        env=env,
+        env_file=env_file,
+        system_prompt=system_prompt,
+        system_prompt_file=system_prompt_file,
+    )
 
 
 # ── Workspace history ────────────────────────────────────────────────

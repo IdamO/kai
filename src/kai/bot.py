@@ -776,8 +776,9 @@ async def _do_switch_workspace(context: ContextTypes.DEFAULT_TYPE, chat_id: int,
     config: Config = context.bot_data["config"]
     home = config.claude_workspace
 
-    # Look up per-workspace config for the target workspace.
-    ws_config = config.get_workspace_config(path)
+    # Layer DB overrides (from /workspace config) on top of YAML baseline.
+    yaml_config = config.get_workspace_config(path)
+    ws_config = await sessions.build_workspace_config(yaml_config, path, chat_id)
     await pool.change_workspace(chat_id, path, workspace_config=ws_config)
     # Per-user file confinement is handled at request time in webhook.py
     # via pool.get_workspace(chat_id), so no global update needed here.
@@ -892,6 +893,345 @@ async def _workspaces_keyboard(
         buttons.append([InlineKeyboardButton(label, callback_data=f"ws:{i}")])
 
     return InlineKeyboardMarkup(buttons)
+
+
+# ── Workspace config (/workspace config) ───────────────────────────
+
+
+async def _handle_workspace_config(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    target: str,
+) -> None:
+    """
+    Handle /workspace config subcommands.
+
+    Dispatches to show, set, or reset workspace configuration fields.
+    All changes apply to the current workspace.
+    """
+    assert update.message is not None
+    chat_id = _chat_id(update)
+    pool = _get_pool(context)
+    config: Config = context.bot_data["config"]
+    workspace = pool.get_workspace(chat_id)
+    workspace_str = str(workspace)
+
+    # Parse: "config [field] [value...]"
+    parts = target.split(None, 2)  # ["config"], ["config", field], or ["config", field, value]
+    field = parts[1].lower() if len(parts) > 1 else None
+    value = parts[2] if len(parts) > 2 else None
+
+    # /workspace config - show current settings
+    if field is None:
+        await _show_workspace_config(update, workspace, config)
+        return
+
+    # /workspace config reset [field]
+    if field == "reset":
+        if value:
+            field_to_reset = value.lower()
+            await sessions.delete_workspace_config_setting(chat_id, workspace_str, field_to_reset)
+            await _apply_config_change(context, chat_id, workspace, config)
+            await update.message.reply_text(f"{field_to_reset} reset to default.")
+        else:
+            await sessions.delete_all_workspace_config(chat_id, workspace_str)
+            await _apply_config_change(context, chat_id, workspace, config)
+            await update.message.reply_text("All workspace config cleared. Using global defaults.")
+        return
+
+    # /workspace config model <name>
+    if field == "model":
+        if not value:
+            await update.message.reply_text("Usage: /workspace config model <haiku|sonnet|opus>")
+            return
+        from kai.config import VALID_MODELS
+
+        if value.lower() not in VALID_MODELS:
+            await update.message.reply_text(f"Unknown model. Choose from: {', '.join(sorted(VALID_MODELS))}")
+            return
+        await sessions.set_workspace_config_setting(chat_id, workspace_str, "model", value.lower())
+        await _apply_config_change(context, chat_id, workspace, config)
+        await update.message.reply_text(f"Model set to {value.lower()}.")
+        return
+
+    # /workspace config budget <n>
+    if field == "budget":
+        if not value:
+            await update.message.reply_text("Usage: /workspace config budget <amount>")
+            return
+        try:
+            budget = float(value)
+            if budget <= 0:
+                raise ValueError
+        except ValueError:
+            await update.message.reply_text("Budget must be a positive number.")
+            return
+        # Enforce ceiling: per-user max_budget from users.yaml, or the
+        # global claude_max_budget_usd as fallback.
+        user_config = config.get_user_config(chat_id)
+        ceiling = (
+            user_config.max_budget
+            if user_config and user_config.max_budget is not None
+            else config.claude_max_budget_usd
+        )
+        if budget > ceiling:
+            await update.message.reply_text(f"Budget cannot exceed ${ceiling:.2f} (admin limit).")
+            return
+        await sessions.set_workspace_config_setting(chat_id, workspace_str, "budget", str(budget))
+        await _apply_config_change(context, chat_id, workspace, config)
+        await update.message.reply_text(f"Budget set to ${budget:.2f}.")
+        return
+
+    # /workspace config timeout <n>
+    if field == "timeout":
+        if not value:
+            await update.message.reply_text("Usage: /workspace config timeout <seconds>")
+            return
+        try:
+            timeout = int(value)
+            if timeout <= 0:
+                raise ValueError
+        except ValueError:
+            await update.message.reply_text("Timeout must be a positive integer (seconds).")
+            return
+        await sessions.set_workspace_config_setting(chat_id, workspace_str, "timeout", str(timeout))
+        await _apply_config_change(context, chat_id, workspace, config)
+        await update.message.reply_text(f"Timeout set to {timeout}s.")
+        return
+
+    # /workspace config env [KEY=VALUE | -KEY]
+    if field == "env":
+        changed = await _handle_workspace_env(update, chat_id, workspace_str, value)
+        if changed:
+            await _apply_config_change(context, chat_id, workspace, config)
+        return
+
+    # /workspace config prompt [text | clear]
+    if field == "prompt":
+        changed = await _handle_workspace_prompt(update, chat_id, workspace_str, value)
+        if changed:
+            await _apply_config_change(context, chat_id, workspace, config)
+        return
+
+    await update.message.reply_text(
+        f"Unknown config field: {field}\nFields: model, budget, timeout, env, prompt, reset"
+    )
+
+
+async def _show_workspace_config(
+    update: Update,
+    workspace: Path,
+    config: Config,
+) -> None:
+    """Display the effective config for the current workspace with source."""
+    assert update.message is not None
+    chat_id = _chat_id(update)
+    yaml_config = config.get_workspace_config(workspace)
+    db_settings = await sessions.get_workspace_config_settings(chat_id, str(workspace))
+
+    lines = [f"Config for {workspace.name}:"]
+
+    # Helper to determine source of each field
+    def _source(field_name: str) -> str:
+        if field_name in db_settings:
+            return "user override"
+        if yaml_config and getattr(yaml_config, field_name, None) is not None:
+            return "workspaces.yaml"
+        return "global default"
+
+    # Model
+    model = db_settings.get("model") or (yaml_config.model if yaml_config else None) or config.claude_model
+    lines.append(f"  Model: {model} ({_source('model')})")
+
+    # Budget
+    try:
+        budget = (
+            float(db_settings["budget"])
+            if "budget" in db_settings
+            else yaml_config.budget
+            if yaml_config and yaml_config.budget is not None
+            else config.claude_max_budget_usd
+        )
+        lines.append(f"  Budget: ${budget:.2f} ({_source('budget')})")
+    except (ValueError, TypeError):
+        lines.append("  Budget: (corrupted - reset with /workspace config reset budget)")
+
+    # Timeout
+    try:
+        timeout = (
+            int(db_settings["timeout"])
+            if "timeout" in db_settings
+            else yaml_config.timeout
+            if yaml_config and yaml_config.timeout is not None
+            else config.claude_timeout_seconds
+        )
+        lines.append(f"  Timeout: {timeout}s ({_source('timeout')})")
+    except (ValueError, TypeError):
+        lines.append("  Timeout: (corrupted - reset with /workspace config reset timeout)")
+
+    # Env vars (show keys only, not values - may contain secrets)
+    env_keys: list[str] = []
+    if yaml_config and yaml_config.env:
+        env_keys.extend(yaml_config.env.keys())
+    env_corrupted = False
+    if "env" in db_settings:
+        try:
+            db_env = json.loads(db_settings["env"])
+            env_keys.extend(k for k in db_env if k not in env_keys)
+        except json.JSONDecodeError:
+            env_corrupted = True
+    if env_corrupted:
+        lines.append("  Env vars: (DB override corrupted - reset to clear)")
+    elif env_keys:
+        lines.append(f"  Env vars: {', '.join(sorted(env_keys))}")
+
+    # System prompt
+    prompt = db_settings.get("prompt")
+    if prompt:
+        preview = prompt[:100] + ("..." if len(prompt) > 100 else "")
+        lines.append(f"  Prompt: {preview} (user override)")
+    elif yaml_config and yaml_config.system_prompt:
+        preview = yaml_config.system_prompt[:100]
+        if len(yaml_config.system_prompt) > 100:
+            preview += "..."
+        lines.append(f"  Prompt: {preview} (workspaces.yaml)")
+
+    await update.message.reply_text("\n".join(lines))
+
+
+async def _handle_workspace_env(
+    update: Update,
+    chat_id: int,
+    workspace_str: str,
+    value: str | None,
+) -> bool:
+    """Handle /workspace config env subcommands. Returns True if config changed."""
+    assert update.message is not None
+
+    # Load existing env vars from the database
+    settings = await sessions.get_workspace_config_settings(chat_id, workspace_str)
+    env: dict[str, str] = {}
+    if "env" in settings:
+        try:
+            env = json.loads(settings["env"])
+        except json.JSONDecodeError:
+            # Corrupted entry; start fresh
+            env = {}
+
+    # /workspace config env - list current vars
+    if not value:
+        if not env:
+            await update.message.reply_text("No workspace env vars set.")
+        else:
+            # Show keys only for security
+            key_lines = [f"  {k}" for k in sorted(env.keys())]
+            await update.message.reply_text("Workspace env vars:\n" + "\n".join(key_lines))
+        return False
+
+    # /workspace config env -KEY - remove a var
+    if value.startswith("-"):
+        key = value[1:]
+        if key in env:
+            del env[key]
+            if env:
+                await sessions.set_workspace_config_setting(chat_id, workspace_str, "env", json.dumps(env))
+            else:
+                await sessions.delete_workspace_config_setting(chat_id, workspace_str, "env")
+            await update.message.reply_text(f"Removed {key}.")
+            return True
+        await update.message.reply_text(f"{key} is not set.")
+        return False
+
+    # /workspace config env KEY=VALUE - set a var
+    if "=" not in value:
+        await update.message.reply_text("Usage: /workspace config env KEY=VALUE")
+        return False
+
+    key, val = value.split("=", 1)
+    key = key.strip()
+    if not key:
+        await update.message.reply_text("Key cannot be empty.")
+        return False
+
+    env[key] = val
+    await sessions.set_workspace_config_setting(chat_id, workspace_str, "env", json.dumps(env))
+    await update.message.reply_text(f"Set {key}.")
+    return True
+
+
+async def _handle_workspace_prompt(
+    update: Update,
+    chat_id: int,
+    workspace_str: str,
+    value: str | None,
+) -> bool:
+    """Handle /workspace config prompt subcommands. Returns True if config changed."""
+    assert update.message is not None
+
+    # Check for file attachment (caption-based prompt).
+    # When a document is attached, Telegram puts the command text in
+    # update.message.caption, not update.message.text. CommandHandler
+    # handles caption-based dispatch, so the handler fires, but
+    # context.args is populated from the caption.
+    if update.message.document:
+        # Reject oversized files before downloading into memory.
+        # Telegram allows up to 20 MB; 100 KB is generous for a
+        # system prompt that will be stored in SQLite.
+        max_prompt_bytes = 100 * 1024
+        file_size = update.message.document.file_size
+        if file_size and file_size > max_prompt_bytes:
+            await update.message.reply_text(f"File too large ({file_size // 1024}KB). Max prompt file size is 100KB.")
+            return False
+        file = await update.message.document.get_file()
+        raw = await file.download_as_bytearray()
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            await update.message.reply_text("File must be UTF-8 text.")
+            return False
+        await sessions.set_workspace_config_setting(chat_id, workspace_str, "prompt", content.strip())
+        await update.message.reply_text(f"Prompt set from file ({len(content)} chars).")
+        return True
+
+    # /workspace config prompt (no value) - show current
+    if not value:
+        settings = await sessions.get_workspace_config_settings(chat_id, workspace_str)
+        prompt = settings.get("prompt")
+        if prompt:
+            await update.message.reply_text(f"Current prompt:\n{prompt}")
+        else:
+            await update.message.reply_text("No workspace prompt set.")
+        return False
+
+    # /workspace config prompt clear
+    if value.strip().lower() == "clear":
+        await sessions.delete_workspace_config_setting(chat_id, workspace_str, "prompt")
+        await update.message.reply_text("Prompt cleared.")
+        return True
+
+    # /workspace config prompt <text>
+    await sessions.set_workspace_config_setting(chat_id, workspace_str, "prompt", value.strip())
+    await update.message.reply_text("Prompt set.")
+    return True
+
+
+async def _apply_config_change(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    workspace: Path,
+    config: Config,
+) -> None:
+    """
+    Rebuild and apply workspace config after a setting change.
+
+    Kills the current Claude process so the next message starts fresh
+    with the new config. Reuses change_workspace() since it handles
+    the full reset-then-override cycle.
+    """
+    pool = _get_pool(context)
+    yaml_config = config.get_workspace_config(workspace)
+    ws_config = await sessions.build_workspace_config(yaml_config, workspace, chat_id)
+    await pool.change_workspace(chat_id, workspace, workspace_config=ws_config)
 
 
 @_require_auth
@@ -1083,6 +1423,14 @@ async def handle_workspace(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         await proc.wait()
         await _switch_workspace(update, context, resolved)
+        return
+
+    # "config" keyword: view or modify workspace settings.
+    # Exact word boundary check to avoid collisions with workspace
+    # names starting with "config" (e.g., "configs", "config-backup").
+    target_lower = target.lower()
+    if target_lower == "config" or target_lower.startswith("config "):
+        await _handle_workspace_config(update, context, target)
         return
 
     # Try WORKSPACE_BASE first (WORKSPACE_BASE wins on name collision per spec)
