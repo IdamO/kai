@@ -1049,6 +1049,16 @@ class PersistentClaude:
                                 accumulated_text += new_text
                                 yield StreamEvent(text_so_far=accumulated_text)
 
+                # Yield on every event so the caller can check its mid-stream
+                # message queue.  Without this, long tool-use chains (Write,
+                # Bash, Read …) that produce no assistant text block the
+                # caller's async-for loop for minutes, starving the queue
+                # drain in bot.py.  The yield is a no-op when accumulated_text
+                # hasn't changed — the caller just gets a chance to run its
+                # between-event housekeeping (mid-stream injection, /stop).
+                if etype not in ("result",):  # result already yields + returns above
+                    yield StreamEvent(text_so_far=accumulated_text)
+
         except Exception as e:
             log.exception("Unexpected error reading Claude stream")
             await self._kill()

@@ -1102,6 +1102,48 @@ def _save_to_workspace(data: bytes, filename: str, workspace: Path) -> Path:
 
 
 @_require_auth
+async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle video messages - download, save to workspace, and send to Claude.
+
+    Videos can't be base64-inlined like images, so we save to disk and tell
+    Claude the path. Claude can then use ffmpeg/ffprobe to analyze, extract
+    frames, etc.
+    """
+    if not update.message or not update.message.video:
+        return
+
+    chat_id = _chat_id(update)
+    claude = _get_claude(context)
+    model = claude.model
+
+    video = update.message.video
+    file = await context.bot.get_file(video.file_id)
+    data = await file.download_as_bytearray()
+    raw = bytes(data)
+
+    ext = Path(video.file_name).suffix.lower() if video.file_name else ".mp4"
+    filename = video.file_name or f"video_{video.file_unique_id}{ext}"
+    saved = _save_to_workspace(raw, filename, claude.workspace)
+
+    caption = update.message.caption or f"Video received: {filename}"
+    duration = video.duration or 0
+    w, h = video.width or 0, video.height or 0
+    meta = f"[Video saved to: {saved} | {duration}s | {w}x{h}]"
+    prompt = f"{caption}\n{meta}"
+
+    log.info("Video received from chat %s: %s (%ds, %dx%d)", chat_id, filename, duration, w, h)
+    log_message(direction="user", chat_id=chat_id, text=caption, media={"type": "video", "filename": filename})
+
+    async with get_lock(chat_id):
+        _set_responding(chat_id)
+        try:
+            await _handle_response(update, context, chat_id, prompt, claude, model)
+        finally:
+            _clear_responding()
+
+
+@_require_auth
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle photo messages — download, base64-encode, and send to Claude.
@@ -1481,14 +1523,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     msg_id = await sessions.enqueue_message(chat_id, prompt)
 
     # If lock is held (Claude is streaming), inject mid-stream and return.
-    # The message is already persisted. If injection fires, Claude sees it
-    # immediately. If it doesn't (cron path), the drain on next restart
-    # picks it up. Either way, no duplicate processing.
+    # The message is already persisted with processed=0.  We push it to the
+    # in-memory queue for injection but do NOT mark it processed yet — that
+    # happens in the streaming loop after inject_message() succeeds.  If the
+    # process restarts before injection, get_pending_messages() will recover
+    # unprocessed messages on the next normal send.
     lock = get_lock(chat_id)
     if lock.locked():
         log.info("Lock held for chat %s -- queueing message %d for mid-stream injection", chat_id, msg_id)
-        get_incoming_queue(chat_id).put_nowait(prompt)
-        await sessions.mark_message_processed(msg_id)
+        get_incoming_queue(chat_id).put_nowait((msg_id, prompt))
         return
 
     claude = _get_claude(context)
@@ -1497,6 +1540,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     async with lock:
         log.info("Lock acquired for chat %s, starting Claude response", chat_id)
         await sessions.mark_message_processed(msg_id)
+
+        # Drain any unprocessed messages that were queued mid-stream but never
+        # injected (e.g., process restarted before injection could fire).
+        # Prepend them to the current prompt so Claude sees the full context.
+        recovered = await sessions.get_pending_messages(chat_id)
+        if recovered:
+            recovered_texts = []
+            for rmsg in recovered:
+                rid, rtext = rmsg["id"], rmsg["text"]
+                recovered_texts.append(rtext)
+                await sessions.mark_message_processed(rid)
+                log.info("Recovered unprocessed message %d for chat %s", rid, chat_id)
+            preamble = "\n\n".join(
+                f"[RECOVERED MESSAGE — sent earlier but not delivered due to restart]\n{t}"
+                for t in recovered_texts
+            )
+            prompt = preamble + "\n\n[CURRENT MESSAGE]\n" + prompt
+
         _set_responding(chat_id)
         try:
             await _handle_response(update, context, chat_id, prompt, claude, model)
@@ -1547,7 +1608,45 @@ async def _maybe_pickup_task(claude: PersistentClaude, chat_id: int) -> None:
             "Check TASKS.md and continue working on the highest priority item. "
             "Update TASKS.md as you progress.]"
         )
+
+        # Drain pending messages before auto-pickup send, same as _handle_response
+        try:
+            recovered = await sessions.get_pending_messages(chat_id)
+            if recovered:
+                texts = []
+                for rmsg in recovered:
+                    texts.append(rmsg["text"])
+                    await sessions.mark_message_processed(rmsg["id"])
+                    log.info("Auto-pickup recovered message %d for chat %s", rmsg["id"], chat_id)
+                preamble = "\n\n".join(
+                    f"[RECOVERED MESSAGE from user - sent earlier but not delivered]\n{t}"
+                    for t in texts
+                )
+                continuation = preamble + "\n\n" + continuation
+        except Exception:
+            log.exception("Failed to drain pending messages in auto-pickup")
+
+        incoming_queue = get_incoming_queue(chat_id)
         async for ev in claude.send(continuation):
+            # Drain mid-stream messages during auto-pickup too
+            while not incoming_queue.empty():
+                try:
+                    queued_item = incoming_queue.get_nowait()
+                    if isinstance(queued_item, tuple):
+                        queued_msg_id, injected_text = queued_item
+                    else:
+                        queued_msg_id, injected_text = None, queued_item
+                    log.info("Injecting mid-stream message for chat %s: %s...", chat_id, injected_text[:100])
+                    injection = (
+                        "[MID-STREAM MESSAGE from user]\n"
+                        f"{injected_text}\n"
+                        "[Incorporate if relevant, otherwise queue for after current task.]"
+                    )
+                    ok = await claude.inject_message(injection)
+                    if ok and queued_msg_id is not None:
+                        await sessions.mark_message_processed(queued_msg_id)
+                except Exception:
+                    log.exception("Failed to inject mid-stream message in auto-pickup")
             if ev.done:
                 break
     except Exception:
@@ -1626,6 +1725,28 @@ async def _handle_response(
         stop_event = get_stop_event(chat_id)
         stop_event.clear()
 
+        # Drain any unprocessed pending messages right before sending.
+        # This catches messages lost to compaction, Playwright hangs, or
+        # any gap where mid-stream injection failed silently.
+        try:
+            recovered = await sessions.get_pending_messages(chat_id)
+            if recovered:
+                texts = []
+                for rmsg in recovered:
+                    texts.append(rmsg["text"])
+                    await sessions.mark_message_processed(rmsg["id"])
+                    log.info("Pre-send recovery of message %d for chat %s", rmsg["id"], chat_id)
+                preamble = "\n\n".join(
+                    f"[RECOVERED MESSAGE from user - sent earlier but not delivered]\n{t}"
+                    for t in texts
+                )
+                if isinstance(prompt, str):
+                    prompt = preamble + "\n\n[CURRENT MESSAGE]\n" + prompt
+                elif isinstance(prompt, list):
+                    prompt = [{"type": "text", "text": preamble + "\n\n[CURRENT MESSAGE]\n"}] + prompt
+        except Exception:
+            log.exception("Failed to drain pending messages pre-send")
+
         # Stream events from Claude — typing indicator shows activity,
         # final response is sent as a new message (no live editing).
         incoming_queue = get_incoming_queue(chat_id)
@@ -1640,7 +1761,13 @@ async def _handle_response(
             # Check for mid-stream messages from the user
             while not incoming_queue.empty():
                 try:
-                    injected_text = incoming_queue.get_nowait()
+                    queued_item = incoming_queue.get_nowait()
+                    # Queue items are (msg_id, text) tuples since the fix;
+                    # handle bare strings for backward compat during rollout.
+                    if isinstance(queued_item, tuple):
+                        queued_msg_id, injected_text = queued_item
+                    else:
+                        queued_msg_id, injected_text = None, queued_item
                     log.info("Injecting mid-stream message for chat %s: %s...", chat_id, injected_text[:100])
                     events.push("mid_stream", {"chat_id": chat_id, "text": injected_text[:500]})
                     injection = (
@@ -1649,7 +1776,9 @@ async def _handle_response(
                         "[If this is relevant to your current task, incorporate it now. "
                         "If unrelated, acknowledge briefly and add it to your task queue for after you finish.]"
                     )
-                    await claude.inject_message(injection)
+                    ok = await claude.inject_message(injection)
+                    if ok and queued_msg_id is not None:
+                        await sessions.mark_message_processed(queued_msg_id)
                 except Exception:
                     log.exception("Failed to inject mid-stream message")
 
@@ -1794,6 +1923,7 @@ def create_bot(config: Config, *, use_webhook: bool = True) -> Application:
 
     # Media handlers (must be before the catch-all text handler)
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.VIDEO | filters.VIDEO_NOTE, handle_video))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
 

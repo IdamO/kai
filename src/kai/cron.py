@@ -400,8 +400,40 @@ async def start_task_drain(app: Application, interval_seconds: int = 1800) -> No
                     "Check your task list and continue working on the highest priority item. "
                     "Update TASKS.md as you progress. If all tasks are complete, do nothing.]"
                 )
+                # Drain pending messages before cron send
                 try:
+                    recovered = await sessions.get_pending_messages(chat_id)
+                    if recovered:
+                        texts = []
+                        for rmsg in recovered:
+                            texts.append(rmsg["text"])
+                            await sessions.mark_message_processed(rmsg["id"])
+                            log.info("Cron drain recovered message %d for chat %d", rmsg["id"], chat_id)
+                        preamble = "\n\n".join(
+                            f"[RECOVERED MESSAGE from user - sent earlier but not delivered]\n{t}"
+                            for t in texts
+                        )
+                        prompt = preamble + "\n\n" + prompt
+                except Exception:
+                    log.exception("Failed to drain pending messages in cron")
+                try:
+                    from kai.locks import get_incoming_queue
+                    incoming_queue = get_incoming_queue(chat_id)
                     async for ev in claude.send(prompt):
+                        while not incoming_queue.empty():
+                            try:
+                                queued_item = incoming_queue.get_nowait()
+                                if isinstance(queued_item, tuple):
+                                    qid, qtxt = queued_item
+                                else:
+                                    qid, qtxt = None, queued_item
+                                injection = f"[MID-STREAM MESSAGE from user]\n{qtxt}"
+                                ok = await claude.inject_message(injection)
+                                if ok and qid is not None:
+                                    await sessions.mark_message_processed(qid)
+                                log.info("Cron injected mid-stream message %s for chat %d", qid, chat_id)
+                            except Exception:
+                                log.exception("Cron mid-stream inject failed")
                         if ev.done:
                             if ev.response and ev.response.success and ev.response.text:
                                 log_message(direction="assistant", chat_id=chat_id, text=ev.response.text)

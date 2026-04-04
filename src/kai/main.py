@@ -343,8 +343,10 @@ def main() -> None:
                 logging.exception("Failed to send interrupted-response notice")
                 flag.unlink(missing_ok=True)
 
-            # Drain any messages that were persisted but never processed.
-            # Just notify the user and mark done. Simple, no duplication risk.
+            # Notify user about unprocessed messages but leave them in DB
+            # with processed=0.  The _handle_message lock-acquisition drain
+            # and the pre-send drain in _handle_response will prepend them
+            # to the next prompt so Claude actually sees them.
             try:
                 async with sessions._get_db().execute(
                     "SELECT DISTINCT chat_id FROM pending_messages WHERE processed = 0"
@@ -357,10 +359,10 @@ def main() -> None:
                         lines = "\n".join(f"  {i+1}. {t[:120]}" for i, t in enumerate(texts))
                         await app.bot.send_message(
                             pending_chat_id,
-                            f"I restarted. {len(texts)} message(s) may not have been processed:\n{lines}\n\nResend if needed.",
+                            f"I restarted. {len(texts)} undelivered message(s) will be included in my next response:\n{lines}",
                         )
-                        await sessions.mark_all_processed(pending_chat_id)
-                        logging.info("Drained %d pending messages for chat %d", len(texts), pending_chat_id)
+                        # Do NOT mark processed here - let the handler drains do it
+                        logging.info("Found %d pending messages for chat %d (will drain on next send)", len(texts), pending_chat_id)
             except Exception:
                 logging.exception("Failed to drain pending messages")
 
