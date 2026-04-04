@@ -1798,6 +1798,36 @@ class TestPerUserRouting:
             mock_review.assert_called_once()
             assert mock_review.call_args[1]["claude_user"] == "global-user"
 
+    @pytest.mark.asyncio
+    async def test_triage_falls_back_to_global_claude_user(self, _clear_cooldowns):
+        """Legacy mode (no user_configs) falls back to global claude_user for triage."""
+        app = _build_test_app()
+        app["config"].claude_user = "global-user"
+        app["config"].user_configs = None
+        app["config"].get_user_config = lambda uid: None
+        payload = _make_issue_payload("opened")
+        body = json.dumps(payload).encode()
+        sig = _sign_payload(payload)
+
+        with (
+            _mock_settings(issue_triage=True, notify_chat_id=12345),
+            patch("kai.webhook.triage.triage_issue", new_callable=AsyncMock) as mock_triage,
+        ):
+            async with TestClient(TestServer(app)) as client:
+                resp = await client.post(
+                    "/webhook/github",
+                    data=body,
+                    headers={
+                        "X-GitHub-Event": "issues",
+                        "X-Hub-Signature-256": sig,
+                    },
+                )
+                assert resp.status == 200
+
+            await asyncio.sleep(0.01)
+            mock_triage.assert_called_once()
+            assert mock_triage.call_args[1]["claude_user"] == "global-user"
+
 
 # ── add_allowed_chat_id / remove_allowed_chat_id ────────────────────
 
