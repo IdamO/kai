@@ -29,7 +29,6 @@ from kai.bot import (
     _handle_workspace_config,
     _handle_workspace_deny,
     _is_authorized,
-    _is_workspace_allowed,
     _models_keyboard,
     _notify_if_queued,
     _prepend_queue_marker,
@@ -75,6 +74,7 @@ from kai.bot import (
 from kai.claude import ClaudeResponse, StreamEvent
 from kai.config import Config
 from kai.tts import DEFAULT_VOICE, VOICES
+from kai.workspace_utils import is_workspace_allowed
 
 # ── _resolve_workspace_path ──────────────────────────────────────────
 
@@ -193,92 +193,84 @@ def _button_callbacks(markup) -> list[str]:
 
 
 class TestWorkspacesKeyboard:
-    @pytest.mark.asyncio
-    async def test_home_always_first(self, tmp_path):
+    def test_home_always_first(self, tmp_path):
         """Home button appears first regardless of history or allowed workspaces."""
-        markup = await _workspaces_keyboard([], "/home", "/home", None, [])
+        markup = _workspaces_keyboard([], "/home", "/home", None, [])
         assert _button_labels(markup)[0] == "\U0001f3e0 Home \U0001f7e2"
 
-    @pytest.mark.asyncio
-    async def test_allowed_workspaces_appear_before_history(self, tmp_path):
+    def test_allowed_workspaces_appear_before_history(self, tmp_path):
         """Pinned workspaces appear between Home and history entries."""
         pinned = tmp_path / "pinned"
         pinned.mkdir()
         history = [{"path": "/other/project"}]
-        markup = await _workspaces_keyboard(history, "/other/project", "/home", None, [pinned])
+        markup = _workspaces_keyboard(history, "/other/project", "/home", None, [pinned])
         labels = _button_labels(markup)
         # Home, then pinned, then history
         assert labels[0].startswith("\U0001f3e0 Home")
         assert labels[1] == "pinned"
         assert labels[2].endswith("\U0001f7e2")  # history entry marked as current
 
-    @pytest.mark.asyncio
-    async def test_allowed_workspace_callback_data(self, tmp_path):
+    def test_allowed_workspace_callback_data(self, tmp_path):
         """Pinned workspaces use ws:allowed:<index> callback data."""
         pinned = tmp_path / "project-a"
         pinned.mkdir()
-        markup = await _workspaces_keyboard([], "/home", "/home", None, [pinned])
+        markup = _workspaces_keyboard([], "/home", "/home", None, [pinned])
         callbacks = _button_callbacks(markup)
         assert "ws:allowed:0" in callbacks
 
-    @pytest.mark.asyncio
-    async def test_history_deduplicated_against_allowed(self, tmp_path):
+    def test_history_deduplicated_against_allowed(self, tmp_path):
         """A path in both allowed and history appears only once (in allowed section)."""
         pinned = tmp_path / "shared"
         pinned.mkdir()
         history = [{"path": str(pinned)}]
-        markup = await _workspaces_keyboard(history, "/home", "/home", None, [pinned])
+        markup = _workspaces_keyboard(history, "/home", "/home", None, [pinned])
         labels = _button_labels(markup)
-        # Should be: Home + one "shared" entry — not two "shared" entries
+        # Should be: Home + one "shared" entry - not two "shared" entries
         assert labels.count("shared") == 1
         callbacks = _button_callbacks(markup)
         # The single entry should be the allowed version, not a bare history index
         assert "ws:allowed:0" in callbacks
         assert not any(c == "ws:0" for c in callbacks)
 
-    @pytest.mark.asyncio
-    async def test_current_workspace_marked_in_allowed(self, tmp_path):
+    def test_current_workspace_marked_in_allowed(self, tmp_path):
         """Green dot appears on the pinned workspace button when it is current."""
         pinned = tmp_path / "active"
         pinned.mkdir()
-        markup = await _workspaces_keyboard([], str(pinned), "/home", None, [pinned])
+        markup = _workspaces_keyboard([], str(pinned), "/home", None, [pinned])
         labels = _button_labels(markup)
         assert any("active" in lbl and "\U0001f7e2" in lbl for lbl in labels)
 
-    @pytest.mark.asyncio
-    async def test_no_allowed_no_history_shows_only_home(self):
+    def test_no_allowed_no_history_shows_only_home(self):
         """With no allowed workspaces and no history, only the Home button appears."""
-        markup = await _workspaces_keyboard([], "/home", "/home", None, [])
+        markup = _workspaces_keyboard([], "/home", "/home", None, [])
         assert len(_button_labels(markup)) == 1
 
-    @pytest.mark.asyncio
-    async def test_disambiguates_duplicate_names(self, tmp_path):
+    def test_disambiguates_duplicate_names(self, tmp_path):
         """Two allowed workspaces with the same directory name get parent/name labels."""
         foo_a = tmp_path / "projects" / "foo"
         foo_b = tmp_path / "clients" / "foo"
         foo_a.mkdir(parents=True)
         foo_b.mkdir(parents=True)
-        markup = await _workspaces_keyboard([], "/home", "/home", None, [foo_a, foo_b])
+        markup = _workspaces_keyboard([], "/home", "/home", None, [foo_a, foo_b])
         labels = _button_labels(markup)
         assert "projects/foo" in labels
         assert "clients/foo" in labels
         # Neither bare "foo" label should appear
         assert "foo" not in labels
 
-    @pytest.mark.asyncio
-    async def test_unique_names_not_disambiguated(self, tmp_path):
+    def test_unique_names_not_disambiguated(self, tmp_path):
         """Allowed workspaces with unique names keep their short labels."""
         bar = tmp_path / "bar"
         baz = tmp_path / "baz"
         bar.mkdir()
         baz.mkdir()
-        markup = await _workspaces_keyboard([], "/home", "/home", None, [bar, baz])
+        markup = _workspaces_keyboard([], "/home", "/home", None, [bar, baz])
         labels = _button_labels(markup)
         assert "bar" in labels
         assert "baz" in labels
 
 
-# ── _is_workspace_allowed ────────────────────────────────────────────
+# ── is_workspace_allowed ─────────────────────────────────────────────
 
 
 def _make_config(**overrides) -> Config:
@@ -307,44 +299,44 @@ def _make_config(**overrides) -> Config:
 class TestIsWorkspaceAllowed:
     def test_no_sources_allows_anything(self, tmp_path):
         """With no base and no allowed list, all paths are accepted (permissive mode)."""
-        assert _is_workspace_allowed(tmp_path / "anything", None, []) is True
+        assert is_workspace_allowed(tmp_path / "anything", None, []) is True
 
     def test_path_under_base_is_allowed(self, tmp_path):
         """Paths under workspace_base are allowed."""
-        assert _is_workspace_allowed(tmp_path / "myproject", tmp_path, []) is True
+        assert is_workspace_allowed(tmp_path / "myproject", tmp_path, []) is True
 
     def test_path_in_allowed_list(self, tmp_path):
         """Paths in the allowed list are allowed."""
         project = tmp_path / "project"
         project.mkdir()
-        assert _is_workspace_allowed(project, None, [project]) is True
+        assert is_workspace_allowed(project, None, [project]) is True
 
     def test_path_outside_both_is_rejected(self, tmp_path):
         """Paths not under base or in allowed list are rejected."""
         base = tmp_path / "base"
         base.mkdir()
         outside = tmp_path / "outside"
-        assert _is_workspace_allowed(outside, base, []) is False
+        assert is_workspace_allowed(outside, base, []) is False
 
     def test_base_set_allowed_empty_rejects_outside(self, tmp_path):
         """With base set but empty allowed list, outside paths are rejected."""
         base = tmp_path / "base"
         base.mkdir()
-        assert _is_workspace_allowed(tmp_path / "other", base, []) is False
+        assert is_workspace_allowed(tmp_path / "other", base, []) is False
 
     def test_only_allowed_set_rejects_unlisted(self, tmp_path):
         """With only allowed list set, unlisted paths are rejected."""
         allowed = tmp_path / "allowed"
         allowed.mkdir()
         unlisted = tmp_path / "unlisted"
-        assert _is_workspace_allowed(unlisted, None, [allowed]) is False
+        assert is_workspace_allowed(unlisted, None, [allowed]) is False
 
     def test_resolves_symlinks_for_comparison(self, tmp_path):
         """Path resolution handles non-canonical paths correctly."""
         project = tmp_path / "project"
         project.mkdir()
         # Pass the resolved canonical path - should still match
-        assert _is_workspace_allowed(project.resolve(), None, [project]) is True
+        assert is_workspace_allowed(project.resolve(), None, [project]) is True
 
 
 # ── create_bot transport mode ──────────────────────────────────────
@@ -1294,6 +1286,64 @@ class TestHandleWorkspace:
         # Directory should have been created
         assert (tmp_path / "fresh").is_dir()
         claude.change_workspace.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_new_git_init_failure_warns(self, tmp_path):
+        """Failed git init warns the user but still switches workspace."""
+        update = _make_update()
+        claude = _make_mock_claude(workspace=Path("/home"))
+        config = _make_config(workspace_base=tmp_path, claude_workspace=Path("/home"))
+        ctx = _make_context(config=config, claude=claude, args=["new", "broken"])
+        # Simulate git init returning a non-zero exit code
+        mock_proc = MagicMock()
+        mock_proc.wait = AsyncMock(return_value=1)
+        with (
+            _mock_resolve(base=tmp_path),
+            patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_proc),
+            patch("kai.bot.sessions.clear_session", new_callable=AsyncMock),
+            patch("kai.bot.sessions.set_setting", new_callable=AsyncMock),
+            patch("kai.bot.sessions.upsert_workspace_history", new_callable=AsyncMock),
+            patch("kai.bot.sessions.build_workspace_config", new_callable=AsyncMock, return_value=None),
+            patch("kai.bot.webhook.update_workspace"),
+        ):
+            await handle_workspace(update, ctx)
+        # Warning about git init failure was sent
+        replies = [call[0][0] for call in update.message.reply_text.call_args_list]
+        assert any("git init failed" in r for r in replies)
+        # Workspace switch still happened despite the failure
+        claude.change_workspace.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_workspace_new_prefix_not_caught(self, tmp_path):
+        """Workspace names starting with 'new' are not mistaken for /workspace new."""
+        # "newsletter" is a valid workspace name, not the "new" subcommand
+        project = tmp_path / "newsletter"
+        project.mkdir()
+        claude = _make_mock_claude(workspace=Path("/other"))
+        config = _make_config(workspace_base=tmp_path, claude_workspace=Path("/home"))
+        update = _make_update()
+        ctx = _make_context(config=config, claude=claude, args=["newsletter"])
+        with (
+            _mock_resolve(base=tmp_path),
+            patch("kai.bot.sessions.clear_session", new_callable=AsyncMock),
+            patch("kai.bot.sessions.set_setting", new_callable=AsyncMock),
+            patch("kai.bot.sessions.upsert_workspace_history", new_callable=AsyncMock),
+            patch("kai.bot.sessions.build_workspace_config", new_callable=AsyncMock, return_value=None),
+            patch("kai.bot.webhook.update_workspace"),
+        ):
+            await handle_workspace(update, ctx)
+        # Should switch to the workspace, not show "Usage: /workspace new <name>"
+        claude.change_workspace.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_workspace_new_bare_shows_usage(self):
+        """'/workspace new' with no name shows usage hint."""
+        update = _make_update()
+        ctx = _make_context(args=["new"])
+        with _mock_resolve():
+            await handle_workspace(update, ctx)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "Usage" in reply
 
     @pytest.mark.asyncio
     async def test_name_found_in_base(self, tmp_path):

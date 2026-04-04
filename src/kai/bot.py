@@ -60,6 +60,7 @@ from kai.pool import SubprocessPool
 from kai.telegram_utils import chunk_text
 from kai.transcribe import TranscriptionError, transcribe_voice
 from kai.tts import DEFAULT_VOICE, VOICES, TTSError, synthesize_speech
+from kai.workspace_utils import is_workspace_allowed
 
 # TOTP is optional (requires pip install -e '.[totp]'). When the extra is not
 # installed, is_totp_configured() returns False and the gate is fully disabled.
@@ -1021,32 +1022,6 @@ def _resolve_workspace_path(target: str, base: Path | None) -> Path | None:
     return resolved
 
 
-def _is_workspace_allowed(path: Path, base: Path | None, allowed: list[Path]) -> bool:
-    """Return True if path is covered by a configured workspace source.
-
-    Accepts paths under the user's workspace_base or in their allowed
-    list. If neither source is configured, all paths are accepted
-    (permissive mode for installs that don't restrict workspace access).
-
-    Args:
-        path: The workspace path to validate (need not exist).
-        base: The user's resolved workspace_base, or None.
-        allowed: The user's effective allowed workspace list
-            (pre-resolved by resolve_workspace_access).
-    """
-    if not base and not allowed:
-        # No restrictions configured - open access
-        return True
-    resolved = path.resolve()
-    # Resolve base too so symlinks in the base path don't bypass the check
-    resolved_base = base.resolve() if base else None
-    in_base = resolved_base and (str(resolved).startswith(str(resolved_base) + "/") or resolved == resolved_base)
-    # allowed list is pre-resolved by resolve_workspace_access(),
-    # so no need to call .resolve() again on each entry.
-    in_allowed = resolved in allowed
-    return bool(in_base or in_allowed)
-
-
 def _short_workspace_name(path: str, base: Path | None) -> str:
     """
     Shorten a workspace path for display in Telegram messages and keyboards.
@@ -1144,7 +1119,7 @@ async def _switch_workspace(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         await update.message.reply_text(f"Workspace: {path}{note_suffix}{config_suffix}\nSession cleared.")
 
 
-async def _workspaces_keyboard(
+def _workspaces_keyboard(
     history: list[dict],
     current_path: str,
     home_path: str,
@@ -1562,7 +1537,7 @@ async def handle_workspaces(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await update.message.reply_text("No workspace history yet.\nUse /workspace new <name> to create one.")
         return
 
-    keyboard = await _workspaces_keyboard(history, current, home, base, allowed)
+    keyboard = _workspaces_keyboard(history, current, home, base, allowed)
     await update.message.reply_text("Workspaces:", reply_markup=keyboard)
 
 
@@ -1629,11 +1604,11 @@ async def handle_workspace_callback(update: Update, context: ContextTypes.DEFAUL
         # source. This handles the case where a path was removed from the
         # user's allowed list after they visited it - the history entry
         # persists but access is revoked.
-        if not _is_workspace_allowed(path, base, allowed):
+        if not is_workspace_allowed(path, base, allowed):
             await sessions.delete_workspace_history(str(path), chat_id)
             await query.answer("That workspace is no longer allowed.")
             history = await sessions.get_workspace_history(chat_id)
-            keyboard = await _workspaces_keyboard(history, str(pool.get_workspace(chat_id)), str(home), base, allowed)
+            keyboard = _workspaces_keyboard(history, str(pool.get_workspace(chat_id)), str(home), base, allowed)
             await query.edit_message_reply_markup(reply_markup=keyboard)
             return
         # Remove stale entries where the directory no longer exists
@@ -1641,7 +1616,7 @@ async def handle_workspace_callback(update: Update, context: ContextTypes.DEFAUL
             await sessions.delete_workspace_history(str(path), chat_id)
             await query.answer("That workspace no longer exists.")
             history = await sessions.get_workspace_history(chat_id)
-            keyboard = await _workspaces_keyboard(history, str(pool.get_workspace(chat_id)), str(home), base, allowed)
+            keyboard = _workspaces_keyboard(history, str(pool.get_workspace(chat_id)), str(home), base, allowed)
             await query.edit_message_reply_markup(reply_markup=keyboard)
             return
         label = _short_workspace_name(str(path), base)
@@ -1878,8 +1853,9 @@ async def handle_workspace(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text("Absolute paths are not allowed. Use a workspace name.")
         return
 
-    # "new" keyword: create a new workspace directory with git init
-    if target_lower.startswith("new"):
+    # "new" keyword: create a new workspace directory with git init.
+    # Exact word boundary so names like "newsletter" aren't caught.
+    if target_lower == "new" or target_lower.startswith("new "):
         parts = target.split(None, 1)
         if len(parts) < 2:
             await update.message.reply_text("Usage: /workspace new <name>")
@@ -1903,7 +1879,14 @@ async def handle_workspace(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
-        await proc.wait()
+        rc = await proc.wait()
+        if rc != 0:
+            # Directory was created but git init failed (git missing,
+            # permissions, etc.). Warn the user but still switch - the
+            # workspace is usable without version control.
+            await update.message.reply_text(
+                f"Warning: git init failed (exit code {rc}). The workspace was created but has no git repo."
+            )
         await _switch_workspace(update, context, resolved)
         return
 
