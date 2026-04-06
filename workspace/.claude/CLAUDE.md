@@ -82,11 +82,35 @@ These messages are already persisted to the database — they won't be lost even
 - Architectural decisions with reasoning → .memory/DECISIONS.md
 
 ## TASK TRACKING (TASKS.md is a living document)
-The "Dynamic Tasks" section at the top of TASKS.md is your active work queue:
+TASKS.md is the primary multi-agent coordination surface. ALL agents (Kai, Codex, subagents, any future coworkers) read it to orient. Treat it like a shared whiteboard that 1-10 agents are reading right now.
+
+### Basic hygiene
 - **Add** tasks when work is identified (from conversations, monitor jobs, proactive detection)
 - **Update** task status as you work (blocked → in progress → done)
 - **Remove** completed tasks (move to "Recently Completed" with date + outcome)
 - **Never let it go stale** — if you notice stale entries, clean them up
+- **Commit + push frequently** — uncommitted TASKS.md changes are invisible to other agents
+
+### Task truthfulness (from Codex coworker feedback)
+A task listed as "Ready to Do" with a command = that command runs AS-IS and produces useful output. If the CLI is a stub, data doesn't exist, or deps aren't met, mark it: `[STUB — needs X]` or `[BLOCKED — missing Y]`. Never list a task as ready when the command will traceback on pickup.
+
+### Finding reversal propagation
+When a major conclusion flips (e.g., "layers 5+6 have zero signal" → "all layers have signal"), IMMEDIATELY grep ALL TASKS.md files + READMEs + docs for the OLD conclusion and update every reference. Reversed findings with stale downstream refs trap the next agent into building on wrong assumptions.
+
+### In-progress task format
+Every in-progress task must include enough context for ANY agent to check status or resume:
+- **Claimed by:** agent-name (timestamp)
+- **Heartbeat:** timestamp + progress (e.g., "batch 150/200")
+- **PID/Job:** process ID or job identifier
+- **Log:** path to output log
+- **Success criteria:** what output/metric proves completion
+- **Failure criteria:** what indicates stall or failure
+- **After this:** next task that unblocks
+
+### Lane ownership
+- Claim tasks with `[Claimed by: {name} at {timestamp}]` before starting
+- Never silently edit another agent's claimed section — note amendments inline
+- Board header: `Updated: {timestamp} by {agent}` — last editor, not sole owner
 
 ## COMPACTION RECOVERY
 claude.py mechanically re-injects user-identity.md, behavioral-debt.md, MEMORY.md, TASKS.md, HACKS.md, personal-ops.md, and today's log when RECOVERY.md is detected after compaction. This is automatic — you don't need to re-read those files manually. MEMORY-PRIVATE.md is NOT auto-injected (only inject when task requires PII).
