@@ -428,9 +428,11 @@ async def start_task_drain(app: Application, interval_seconds: int = 1800) -> No
                                 else:
                                     qid, qtxt = None, queued_item
                                 injection = f"[MID-STREAM MESSAGE from user]\n{qtxt}"
-                                ok = await claude.inject_message(injection)
-                                if ok and qid is not None:
+                                # Mark processed BEFORE injection to prevent
+                                # duplicates on process restart.
+                                if qid is not None:
                                     await sessions.mark_message_processed(qid)
+                                await claude.inject_message(injection)
                                 log.info("Cron injected mid-stream message %s for chat %d", qid, chat_id)
                             except Exception:
                                 log.exception("Cron mid-stream inject failed")

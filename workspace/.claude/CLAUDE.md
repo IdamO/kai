@@ -93,7 +93,7 @@ claude.py mechanically re-injects user-identity.md, behavioral-debt.md, MEMORY.m
 
 After compaction, DO read:
 1. `.memory/RECOVERY.md` (if it still exists — lists recent files, processes, messages)
-2. Last 30 messages from `pending_messages` in `/Users/idamo/kai/kai.db`: `sqlite3 /Users/idamo/kai/kai.db "SELECT text, received_at FROM pending_messages ORDER BY received_at DESC LIMIT 30;"` — catches Telegram messages that arrived during or after compaction
+2. Last 30 messages from `pending_messages` in `/Users/idamo/kai/kai.db`: `sqlite3 /Users/idamo/kai/kai.db "SELECT text, received_at FROM pending_messages WHERE processed = 0 ORDER BY received_at DESC LIMIT 30;"` — catches Telegram messages that arrived during or after compaction
 3. Relevant `.claude/rules/` for the current task type
 4. Any specific files you were editing (check "Recently Modified Files" in recovery state)
 
@@ -230,6 +230,15 @@ After completing any code change, config update, or file creation in kyma-engine
 
 **Product discovery over experiment execution (2 corrections)**
 Don't just run experiments without thinking about WHAT TO BUILD. Start from user delight. Let the data tell you what to build.
+
+**⛔ CHECK LOGS BEFORE ANY TASK — dedup gate (5+, #2 recidivism)**
+Before starting ANY task from a list, grep daily logs for evidence it was already completed. `grep -ri "[task keyword]" .memory/logs/` BEFORE executing. Compaction destroys conversation context but daily logs persist.
+
+**Follow instructions LITERALLY (7+ corrections)**
+When user names a SPECIFIC source or method, use THAT — don't substitute your preferred approach. Literal first, then ask if you think different is better.
+
+**Napkin math before GPU launches (4+ incidents)**
+Before launching ANY GPU/Modal job: calculate memory, wall time, cost, verify arg sizes (<2GB Modal), add checkpointing for jobs >30min. Write estimates to daily log BEFORE launching.
 
 ## WORKSPACE FILE INDEX
 > Discoverable files in this workspace. Check these before asking or searching.

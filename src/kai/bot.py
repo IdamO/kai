@@ -1642,9 +1642,11 @@ async def _maybe_pickup_task(claude: PersistentClaude, chat_id: int) -> None:
                         f"{injected_text}\n"
                         "[Incorporate if relevant, otherwise queue for after current task.]"
                     )
-                    ok = await claude.inject_message(injection)
-                    if ok and queued_msg_id is not None:
+                    # Mark processed BEFORE injection to prevent duplicates
+                    # on process restart (race window between inject and mark).
+                    if queued_msg_id is not None:
                         await sessions.mark_message_processed(queued_msg_id)
+                    await claude.inject_message(injection)
                 except Exception:
                     log.exception("Failed to inject mid-stream message in auto-pickup")
             if ev.done:
@@ -1776,9 +1778,11 @@ async def _handle_response(
                         "[If this is relevant to your current task, incorporate it now. "
                         "If unrelated, acknowledge briefly and add it to your task queue for after you finish.]"
                     )
-                    ok = await claude.inject_message(injection)
-                    if ok and queued_msg_id is not None:
+                    # Mark processed BEFORE injection to prevent duplicates
+                    # on process restart (race window between inject and mark).
+                    if queued_msg_id is not None:
                         await sessions.mark_message_processed(queued_msg_id)
+                    await claude.inject_message(injection)
                 except Exception:
                     log.exception("Failed to inject mid-stream message")
 
