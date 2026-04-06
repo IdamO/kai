@@ -42,10 +42,10 @@ Verdict: `files/consultations/2026-04-06-music-ip/verdict.md`
 - **Modal all-layer MERT encoding** — DONE. 200/200 batches, 99971 tracks × 25 layers. 9.5GB. Backed up to R2.
 - **Feature predictor v2** — DONE. R²=0.889 loudness, 0.874 acousticness, 0.866 energy. Layers 18+19, per-dim standardization.
 - **MODEL-001 v2 taste projector** — DONE. val_cos=0.4934. Ceiling confirmed on re-run.
-- **Composite ranker** — EVALUATED. Interim weights lose to taste_cosine alone (NDCG 0.18 vs 0.51). Needs weight retuning.
+- **Composite ranker** — TUNED. Sweep winner: 90% taste + 10% transition → NDCG@20=0.5336 (was 0.1796). Now default in code.
 - **R2 backup** — DONE. 28.9GB across 2,171 objects. All embeddings + manifests backed up.
 - **Repo overhaul** — DONE. README, CONTRIBUTING, MODEL-CATALOG, 9 per-model READMEs, TASKS.md. Droppable task protocol added.
-- **Next engine priorities**: Retune composite ranker weights (cache component scores first), optional 5-layer feature predictor (5120d).
+- **Next engine priorities**: Optional finer weight sweep (0.01-step grid), optional 5-layer feature predictor (5120d).
 
 ### Existing Infrastructure (KEPT — feeds Taste Oracle)
 - FAISS 254.8M × 12d index
