@@ -1,0 +1,427 @@
+{
+  "user": {
+    "tracks_analyzed": 20,
+    "tracks_in_mert": 16,
+    "tracks_in_als": 20,
+    "tracks_with_audio": 19,
+    "top_genres": [
+      "hip hop",
+      "afrobeats",
+      "afrobeat",
+      "west coast hip hop",
+      "rap",
+      "afropop",
+      "afroswing",
+      "afropiano",
+      "indie",
+      "psychedelic pop"
+    ],
+    "edge_genres": [
+      "emo rap",
+      "indie",
+      "psychedelic pop",
+      "art rock",
+      "alternative rock",
+      "azonto",
+      "dancehall",
+      "alté",
+      "afro adura",
+      "amapiano"
+    ],
+    "audio_centroid": {
+      "danceability": 0.6261,
+      "energy": 0.5592,
+      "loudness": -7.6733,
+      "speechiness": 0.1064,
+      "acousticness": 0.3539,
+      "instrumentalness": 0.0048,
+      "liveness": 0.1961,
+      "valence": 0.4604,
+      "tempo": 122.435
+    },
+    "audio_stddev": {
+      "danceability": 0.1354,
+      "energy": 0.2396,
+      "loudness": 3.0797,
+      "speechiness": 0.0741,
+      "acousticness": 0.3378,
+      "instrumentalness": 0.0119,
+      "liveness": 0.144,
+      "valence": 0.1886,
+      "tempo": 29.56
+    },
+    "deviation_profile": {
+      "danceability": 0.229,
+      "energy": 0.197,
+      "loudness": 0.347,
+      "speechiness": 0.143,
+      "acousticness": -0.044,
+      "instrumentalness": -0.533,
+      "liveness": 0.084,
+      "valence": 0.189,
+      "tempo": 0.112
+    },
+    "tracks": [
+      {
+        "name": "HUMBLE.",
+        "artist": "Kendrick Lamar",
+        "spotify_id": "7KXjTSCq5nL1LoYtL7XAwS",
+        "has_mert": false,
+        "has_als": true
+      },
+      {
+        "name": "Alright",
+        "artist": "Kendrick Lamar",
+        "spotify_id": "3iVcZ5G6tvkXZkZKlMpIUs",
+        "has_mert": false,
+        "has_als": true
+      },
+      {
+        "name": "Like That",
+        "artist": "Future, Metro Boomin, Kendrick Lamar",
+        "spotify_id": "2tudvzsrR56uom6smgOcSf",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "CARNIVAL",
+        "artist": "¥$, Kanye West, Ty Dolla $ign",
+        "spotify_id": "2McT2fkH0VDqPsbiB9HWPq",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "True Love",
+        "artist": "Kanye West, XXXTENTACION",
+        "spotify_id": "06JvOZ39sK8D8SqiqfaxDU",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Pink + White",
+        "artist": "Frank Ocean",
+        "spotify_id": "3xKsf9qdS1CyvXSMEid6g8",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "White Ferrari",
+        "artist": "Frank Ocean",
+        "spotify_id": "2LMkwUfqC6S6s6qDVlEuzV",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Nights",
+        "artist": "Frank Ocean",
+        "spotify_id": "7eqoqGkKwgOaWNNHx90uEZ",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Self Control",
+        "artist": "Frank Ocean",
+        "spotify_id": "5GUYJTQap5F3RDQiCOJhrS",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Godspeed",
+        "artist": "Frank Ocean",
+        "spotify_id": "34xTFwjPQ1dC6uJmleno7x",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "The Less I Know The Better",
+        "artist": "Tame Impala",
+        "spotify_id": "6K4t31amVTZDgR3sKmwUJJ",
+        "has_mert": false,
+        "has_als": true
+      },
+      {
+        "name": "Lost In Yesterday",
+        "artist": "Tame Impala",
+        "spotify_id": "5JWPUEov2wlX7c0jhYZpeB",
+        "has_mert": false,
+        "has_als": true
+      },
+      {
+        "name": "Midnight City",
+        "artist": "M83",
+        "spotify_id": "6GyFP1nfCDB8lbD2bG0Hq9",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Motion Sickness",
+        "artist": "Phoebe Bridgers",
+        "spotify_id": "5xo8RrjJ9CVNrtRg2S3B1R",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Idioteque",
+        "artist": "Radiohead",
+        "spotify_id": "1W5XugQJGhnSATMI5n002M",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Essence (feat. Tems)",
+        "artist": "Wizkid, Tems",
+        "spotify_id": "5FG7Tl93LdH117jEKYl3Cm",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "MMS",
+        "artist": "Asake, Wizkid",
+        "spotify_id": "13VXuHw3O8Yt7VwRIDqSo4",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Prototype",
+        "artist": "Outkast",
+        "spotify_id": "1QJb6LWvPXZpTMiqqODqkH",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Redbone",
+        "artist": "Childish Gambino",
+        "spotify_id": "3vQ4T78TTMOjQXGfXVKQJo",
+        "has_mert": true,
+        "has_als": true
+      },
+      {
+        "name": "Ivy",
+        "artist": "Frank Ocean",
+        "spotify_id": "2ZWlPOoWh0626oTaHrnl2a",
+        "has_mert": true,
+        "has_als": true
+      }
+    ]
+  },
+  "taste_name": "Vocal Hip-Hop",
+  "taste_description_prompt": "You are a music taste analyst with deep knowledge of production, curation, and the psychology of listening. You have access to a person's listening data analyzed through multiple signal layers.\n\nTASK: Write a taste DNA description for this person. It should feel like a mirror -- they should read it and think \"holy shit this knows me.\" Be specific and evocative, not generic. Name their taste in a memorable way.\n\n## Their Top Tracks (sample):\n  - HUMBLE. by Kendrick Lamar (DAMN.)\n  - Alright by Kendrick Lamar (To Pimp A Butterfly)\n  - Like That by Future, Metro Boomin, Kendrick Lamar (WE DON'T TRUST YOU)\n  - CARNIVAL by ¥$, Kanye West, Ty Dolla $ign (VULTURES 1)\n  - True Love by Kanye West, XXXTENTACION (True Love)\n  - Pink + White by Frank Ocean (Blonde)\n  - White Ferrari by Frank Ocean (Blonde)\n  - Nights by Frank Ocean (Blonde)\n  - Self Control by Frank Ocean (Blonde)\n  - Godspeed by Frank Ocean (Blonde)\n  - The Less I Know The Better by Tame Impala (Currents)\n  - Lost In Yesterday by Tame Impala (The Slow Rush)\n  - Midnight City by M83 (Hurry up, We're Dreaming)\n  - Motion Sickness by Phoebe Bridgers (Stranger in the Alps)\n  - Idioteque by Radiohead (Kid A)\n  - Essence (feat. Tems) by Wizkid, Tems (Made In Lagos)\n  - MMS by Asake, Wizkid (Lungu Boy)\n  - Prototype by Outkast (Speakerboxxx/The Love Below)\n  - Redbone by Childish Gambino (\"Awaken, My Love!\")\n  - Ivy by Frank Ocean (Blonde)\n\n## Audio Profile:\n- Tracks analyzed: 20 (audio features: 19, MERT embeddings: 16, ALS vectors: 20)\n- Top genres: hip hop (4), afrobeats (4), afrobeat (4), west coast hip hop (3), rap (3), afropop (3), afroswing (3), afropiano (3), indie (2), psychedelic pop (2), azonto (2), dancehall (2), emo rap (1), art rock (1), alternative rock (1)\n- Edge genres (rare, defining): emo rap, indie, psychedelic pop, art rock, alternative rock, azonto, dancehall, alté, afro adura, amapiano\n\n## What Makes This Person UNIQUE (deviation from average listener):\n  - instrumentalness: z=-0.53 (user=0.005, population=0.170)\n  - loudness: z=+0.35 (user=-7.673, population=-9.580)\n  - danceability: z=+0.23 (user=0.626, population=0.586)\n  - energy: z=+0.20 (user=0.559, population=0.509)\n  - valence: z=+0.19 (user=0.460, population=0.414)\n  - speechiness: z=+0.14 (user=0.106, population=0.091)\n  - tempo: z=+0.11 (user=122.435, population=119.300)\n\n## Discoveries Our Algorithms Found For Them:\n  - [mert] Intro by Lucky Daye (score: 0.990)\n  - [mert] Monday Nights by Gareth Donkin (score: 0.988)\n  - [mert] Symptoms by Devin Dawson (score: 0.988)\n  - [als] Congratulations (feat. Bilal) by Mac Miller, Bilal (score: 0.686)\n  - [als] Can't Go Back by Sampha (score: 0.677)\n  - [als] Static by Steve Lacy (score: 0.637)\n  - [bridge] Country Kid by Sykamore (score: 0.530)\n  - [bridge] What Am I Supposed to Do by Dane Donohue (score: 0.524)\n  - [audio_knn] Made to Be Together by Trey Songz (score: 0.599)\n  - [audio_knn] RSVP by Maren Morris (score: 0.647)\n\n## Requirements:\n1. Name their taste in a specific, evocative way (2-5 words). NOT generic labels like \"eclectic\" or \"diverse.\" Think \"nocturnal bass architecture\" or \"melancholic analog warmth\" or \"sun-bleached soul machinery.\"\n2. Identify the 2-3 audio dimensions that define them most.\n3. Describe what their ears DO -- what they're drawn to and why. \"Your ears hunt for X because Y.\"\n4. Keep it under 200 words, quotable, shareable.\n5. Write as a second-person statement (\"You...\") that they'd screenshot and share.\n6. Be bold. Wrong-but-interesting beats correct-but-boring.",
+  "discoveries": [
+    {
+      "track_name": "Intro",
+      "artist": "Lucky Daye",
+      "album": "Candydrip",
+      "spotify_id": "1dUAu8jf6WNiHzVAvXzbEE",
+      "preview_url": "https://p.scdn.co/mp3-preview/0989847302adde6c59c814566c84b8b6bcbfb1a0?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "mert",
+      "score": 0.9895,
+      "reason": "Deep perceptual match -- sounds like your taste in ways features can't capture",
+      "popularity": 27
+    },
+    {
+      "track_name": "Monday Nights",
+      "artist": "Gareth Donkin",
+      "album": "Suite Escape",
+      "spotify_id": "78FAw5LvW2GnMOr6DfCU2W",
+      "preview_url": "https://p.scdn.co/mp3-preview/620b0d3cb1ceaa71f312b37c68de4e67a9df620d?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "mert",
+      "score": 0.9882,
+      "reason": "Deep perceptual match -- sounds like your taste in ways features can't capture",
+      "popularity": 24
+    },
+    {
+      "track_name": "Symptoms",
+      "artist": "Devin Dawson",
+      "album": "Dark Horse",
+      "spotify_id": "321gyCiwIT2KknVLgAlbNK",
+      "preview_url": "https://p.scdn.co/mp3-preview/b4eece43a8cc8f0522ffd6881304b6aa7a0b78b8?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "mert",
+      "score": 0.9881,
+      "reason": "Deep perceptual match -- sounds like your taste in ways features can't capture",
+      "popularity": 24
+    },
+    {
+      "track_name": "Congratulations (feat. Bilal)",
+      "artist": "Mac Miller, Bilal",
+      "album": "The Divine Feminine",
+      "spotify_id": "1OubIZ0ARYCUq5kceYUQiO",
+      "preview_url": "https://p.scdn.co/mp3-preview/954ea8a8542fdd9715d386eae2551245e4c47a00?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "als",
+      "score": 0.6862,
+      "reason": "Taste-graph match -- people with your DNA love this",
+      "popularity": 78
+    },
+    {
+      "track_name": "Can't Go Back",
+      "artist": "Sampha",
+      "album": "Lahai",
+      "spotify_id": "3AMkB7lBciaMh66dCx1nqL",
+      "preview_url": "https://p.scdn.co/mp3-preview/b7b28b253685c8a0ceb1a4a2f38a2d233306892f?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "als",
+      "score": 0.6769,
+      "reason": "Taste-graph match -- people with your DNA love this",
+      "popularity": 39
+    },
+    {
+      "track_name": "Static",
+      "artist": "Steve Lacy",
+      "album": "Gemini Rights",
+      "spotify_id": "4OmfWzukSVD140NiAIEjem",
+      "preview_url": "https://p.scdn.co/mp3-preview/097e3e34df67fd23e0347456a54aecd2a783f4f0?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "als",
+      "score": 0.6374,
+      "reason": "Taste-graph match -- people with your DNA love this",
+      "popularity": 74
+    },
+    {
+      "track_name": "Country Kid",
+      "artist": "Sykamore",
+      "album": "Country Kid",
+      "spotify_id": "5kCK6sVLVoMcgz6sNLFNzr",
+      "preview_url": "https://p.scdn.co/mp3-preview/962e8deeb82e5d1d59b65302fe007e6d43486976?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "bridge",
+      "score": 0.5302,
+      "reason": "Genre-boundary track -- bridges worlds in your taste",
+      "popularity": 29
+    },
+    {
+      "track_name": "What Am I Supposed to Do",
+      "artist": "Dane Donohue",
+      "album": "Dane Donohue",
+      "spotify_id": "2qJe2EMGFRHrcPIgBOwr9n",
+      "preview_url": "https://p.scdn.co/mp3-preview/7058923e197775e969ad7c9f15118a7f7372ca72?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "bridge",
+      "score": 0.5243,
+      "reason": "Genre-boundary track -- bridges worlds in your taste",
+      "popularity": 10
+    },
+    {
+      "track_name": "Made to Be Together",
+      "artist": "Trey Songz",
+      "album": "Passion, Pain & Pleasure (Deluxe Version)",
+      "spotify_id": "170dXeKDNlpk316YASXBCm",
+      "preview_url": "https://p.scdn.co/mp3-preview/7d998ace7946a93eaf5ac74d741bf392975ffece?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "audio_knn",
+      "score": 0.5989,
+      "reason": "Sonic profile match -- weighted by what makes YOUR taste unique",
+      "popularity": 36
+    },
+    {
+      "track_name": "RSVP",
+      "artist": "Maren Morris",
+      "album": "GIRL",
+      "spotify_id": "5XpCtro93VCZcfZHHoPh0I",
+      "preview_url": "https://p.scdn.co/mp3-preview/68beedb5b7760a24abd748ff9ee86e6b809e8883?cid=65b708073fc0480ea92a077233ca87bd",
+      "algorithm": "audio_knn",
+      "score": 0.6469,
+      "reason": "Sonic profile match -- weighted by what makes YOUR taste unique",
+      "popularity": 37
+    }
+  ],
+  "taste_dna": {
+    "uniqueness_dimensions": [
+      {
+        "feature": "instrumentalness",
+        "z_score": -0.533,
+        "direction": "low",
+        "user_value": 0.0048,
+        "population_mean": 0.17
+      },
+      {
+        "feature": "loudness",
+        "z_score": 0.347,
+        "direction": "high",
+        "user_value": -7.6733,
+        "population_mean": -9.58
+      },
+      {
+        "feature": "danceability",
+        "z_score": 0.229,
+        "direction": "high",
+        "user_value": 0.6261,
+        "population_mean": 0.586
+      },
+      {
+        "feature": "energy",
+        "z_score": 0.197,
+        "direction": "high",
+        "user_value": 0.5592,
+        "population_mean": 0.509
+      },
+      {
+        "feature": "valence",
+        "z_score": 0.189,
+        "direction": "high",
+        "user_value": 0.4604,
+        "population_mean": 0.414
+      }
+    ],
+    "genre_center": [
+      "hip hop",
+      "afrobeats",
+      "afrobeat",
+      "west coast hip hop",
+      "rap"
+    ],
+    "genre_edges": [
+      "emo rap",
+      "indie",
+      "psychedelic pop",
+      "art rock",
+      "alternative rock",
+      "azonto",
+      "dancehall",
+      "alté",
+      "afro adura",
+      "amapiano"
+    ]
+  },
+  "mashups": [
+    {
+      "track_a": {
+        "name": "Like That",
+        "artist": "Future, Metro Boomin, Kendrick Lamar",
+        "spotify_id": "2tudvzsrR56uom6smgOcSf"
+      },
+      "track_b": {
+        "name": "Country Kid",
+        "artist": "Sykamore",
+        "spotify_id": "5kCK6sVLVoMcgz6sNLFNzr",
+        "algorithm": "bridge"
+      },
+      "file": "/Users/idamo/kai/workspace/experiments/mashups/mashup_1_2tudvzsr_5kCK6sVL.wav",
+      "duration_sec": 20.0
+    },
+    {
+      "track_a": {
+        "name": "Pink + White",
+        "artist": "Frank Ocean",
+        "spotify_id": "3xKsf9qdS1CyvXSMEid6g8"
+      },
+      "track_b": {
+        "name": "Country Kid",
+        "artist": "Sykamore",
+        "spotify_id": "5kCK6sVLVoMcgz6sNLFNzr",
+        "algorithm": "bridge"
+      },
+      "file": "/Users/idamo/kai/workspace/experiments/mashups/mashup_2_3xKsf9qd_5kCK6sVL.wav",
+      "duration_sec": 20.0
+    },
+    {
+      "track_a": {
+        "name": "White Ferrari",
+        "artist": "Frank Ocean",
+        "spotify_id": "2LMkwUfqC6S6s6qDVlEuzV"
+      },
+      "track_b": {
+        "name": "Intro",
+        "artist": "Lucky Daye",
+        "spotify_id": "1dUAu8jf6WNiHzVAvXzbEE",
+        "algorithm": "mert"
+      },
+      "file": "/Users/idamo/kai/workspace/experiments/mashups/mashup_3_2LMkwUfq_1dUAu8jf.wav",
+      "duration_sec": 20.0
+    }
+  ],
+  "agent_narrative": "Your taste agent spent 6.6 hours scanning 3 signal layers across 60,000 tracks.\n\nDEEP LISTENING: I analyzed the sonic DNA of your music -- not just genre or tempo, but the actual texture and production fingerprint. I found \"Intro\" by Lucky Daye, \"Monday Nights\" by Gareth Donkin, \"Symptoms\" by Devin Dawson. These tracks share your sonic signature in ways a playlist algorithm would never catch.\n\nTASTE GRAPH: I traced the listening patterns of people who share your DNA across 1.7 billion playlist connections. They led me to \"Congratulations (feat. Bilal)\" by Mac Miller, Bilal, \"Can't Go Back\" by Sampha, \"Static\" by Steve Lacy.\n\nGENRE BRIDGES: I found tracks sitting at the boundary between worlds in your taste -- \"Country Kid\" by Sykamore, \"What Am I Supposed to Do\" by Dane Donohue. These are the cross-genre surprises that expand where your ears can go.\n\nSONIC MATCH: Your ears are unusually tuned to instrumentalness. I weighted my search by what makes YOU different from the average listener and found \"Made to Be Together\" by Trey Songz, \"RSVP\" by Maren Morris.\n\nMASHUP EXPERIMENTS: I created sonic collisions between your music and my discoveries:\n  - Like That x Country Kid (20.0s) -- [/Users/idamo/kai/workspace/experiments/mashups/mashup_1_2tudvzsr_5kCK6sVL.wav]\n  - Pink + White x Country Kid (20.0s) -- [/Users/idamo/kai/workspace/experiments/mashups/mashup_2_3xKsf9qd_5kCK6sVL.wav]\n  - White Ferrari x Intro (20.0s) -- [/Users/idamo/kai/workspace/experiments/mashups/mashup_3_2LMkwUfq_1dUAu8jf.wav]\nThese mashups exist nowhere else. I made them for you.\n\nI'm still hunting. Check back tomorrow."
+}

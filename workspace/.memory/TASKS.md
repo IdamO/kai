@@ -12,7 +12,7 @@ Verdict: `files/consultations/2026-04-06-music-ip/verdict.md`
 - [x] **FAISS 256M×12d index** — IVF4096,PQ6, 254.8M vectors, 39ms search.
 - [x] **Taste community detection** — Leiden on 2.5M nodes, modularity=0.67.
 - [x] **idx_track_name_artist** — 256M-row index for name+artist matching. One-time build complete.
-- [ ] **Web endpoint** — Wire taste_dna.py into kyma.stream (Next.js → FastAPI → pipeline)
+- [x] **Web endpoint** — `experiments/taste_dna_api.py` on :8899. POST /api/dna with track_ids, lastfm_username, or preset. ~1.7s response.
 - [ ] **Shareable URL** — kyma.stream/dna/{username} with OG meta tags for social sharing
 - [ ] **Visual artifact** — Designed shareable image/card (Spotify Wrapped aesthetic)
 - [ ] **Improve community descriptions** — Currently too BPM-centric; need genre/mood inference from centroid features + example tracks
