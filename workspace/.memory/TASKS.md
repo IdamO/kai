@@ -1,35 +1,35 @@
 # Active Tasks
 
-## Current Focus (updated 2026-04-06 01:00 PDT)
+## Current Focus (updated 2026-04-06 21:10 PDT)
 
-### TASTE ORACLE — Consultation-Validated Build Plan
-Strategy validated via dual-model consultation (Opus 4.6 + Sonnet 4.5, Apr 6).
-Verdict: `files/consultations/2026-04-06-music-ip/verdict.md`
-78% confidence. Both models independently converged: build taste intelligence layer ON TOP of Spotify/Apple Music.
+### BATH PLAYLIST AGENT — Essay-Driven Reframe
+Idam's Apple Pages essays (Jan-Feb 2026) reject Taste DNA as Wrapped 2.0 / identity signaling.
+Reframe doc: `files/product-v3-bath-playlist.md`
+Core thesis: Agent sends you music you'll love without you explaining yourself. Mashup = preview asymmetry solver (30-90s → 15s). No profiles, no deviation charts, no signaling.
 
-**Phase 1: Taste DNA (Weeks 1-2)** ← CURRENT
-- [x] **taste_dna.py MVP** — Full pipeline: Last.fm → Spotify match (87%) → 43,424 Leiden communities → diversity scoring → bridge expeditions. Tested on rj (500 tracks). Committed e918d0a.
-- [x] **FAISS 256M×12d index** — IVF4096,PQ6, 254.8M vectors, 39ms search.
-- [x] **Taste community detection** — Leiden on 2.5M nodes, modularity=0.67.
-- [x] **idx_track_name_artist** — 256M-row index for name+artist matching. One-time build complete.
-- [x] **Web endpoint** — `experiments/taste_dna_api.py` on :8899. POST /api/dna with track_ids, lastfm_username, or preset. ~1.7s response.
-- [x] **Shareable URL** — kyma.stream/dna/{username} with dynamic OG meta + edge-rendered social image
-- [x] **Visual artifact** — TasteDNACard component: deviation chart, genre map, discovery list, agent briefing
-- [ ] **Improve community descriptions** — Currently too BPM-centric; need genre/mood inference from centroid features + example tracks
+**Phase 1: Taste DNA (Weeks 1-2)** ← COMPLETE (infrastructure retained, surface killed)
+- [x] taste_dna.py pipeline, FAISS, Leiden communities, Last.fm ingestion — all kept as backend intelligence
+- [x] DNA web page, shareable URL, OG card, deviation chart — KILLED as user-facing (kept for internal debug)
 
-**Phase 2: Bridge Expedition Agent (Weeks 3-4)**
-- [ ] **Weekly AI-curated discovery queue** — Deep-linked to Spotify/Apple Music
-- [ ] **Context inference** — Time, explicit mode selection from day one
-- [ ] **In-app rating** — Rate tracks to feed behavioral loop (the real moat)
+**Phase 1 (revised): Silent Agent MVP** ← CURRENT
+- [ ] **Discovery endpoint** — POST /api/discover. Takes listening history, returns 10 tracks + trust anchors (known track that connects to each discovery). No profile, no analytics display.
+- [ ] **Mashup preview pairs** — Each discovery paired with trust anchor. 15s mashup using engine v3. The preview asymmetry hack.
+- [ ] **Delivery** — Spotify playlist creation or simple web page with audio. "Here's music for you." Nothing else.
+- [ ] **Behavioral signal** — Listen/skip tracking. No thumbs up/down. No ratings UI.
 
-**Phase 3: Social Taste Exchange (Month 2)**
-- [ ] **Friend invitations** — Taste overlap analysis
-- [ ] **Shared queues** — Collaborative discovery
-- [ ] **k-factor measurement** — Viral coefficient tracking
+**Phase 2: The Gift (Weeks 3-4)**
+- [ ] **Gift flow** — Send discoveries to a friend via link. Friend connects history. Agent bridges both.
+- [ ] **Bath playlist moment** — "We both love this" without either person explaining their taste.
+- [ ] **No comparison, no competition** — Gifting, not signaling.
+
+**Phase 3: Agent Autonomy (Month 2)**
+- [ ] **Weekly cron** — Re-runs pipeline, diffs against previous, sends delta.
+- [ ] **Silent learning** — Agent gets better from behavioral signal alone.
+- [ ] **k-factor tracking** — Gift viral coefficient.
 
 **Phase 4: Measure & Pivot (Month 3)**
+- [ ] "Did the user listen to a track they'd never heard and add it to their library?" ← success metric
 - [ ] k > 0.3 AND monthly churn < 8% → consumer product works
-- [ ] If not → pivot toward professional curation tools
 
 ### DO NOT BUILD (from verdict)
 - No playback service. No p.scdn.co. No audio distribution.
