@@ -29,14 +29,18 @@ from pydantic import BaseModel, Field
 from taste_dna_experiment import (
     DataSources,
     Discovery,
+    FEATURE_DESCRIPTORS,
+    FEATURE_LABELS,
     PRESET_IDAM,
     TasteDNA,
     compute_taste_dna,
+    describe_sonic_identity,
     discover_als_neighbors,
     discover_audio_knn,
     discover_bridge_tracks,
     discover_mert_neighbors,
     fetch_lastfm_top_tracks,
+    infer_mood,
     resolve_lastfm_tracks,
     resolve_tracks,
     resolve_tracks_by_name,
@@ -138,6 +142,9 @@ class DNAResponse(BaseModel):
     audio_centroid: dict
     audio_stddev: dict
     deviation_profile: dict
+    sonic_identity: str
+    moods: list[str]
+    feature_labels: dict
     tracks: list[TrackInfo]
 
     # Discoveries
@@ -167,9 +174,13 @@ def _build_agent_briefing(dna: TasteDNA, discoveries: list[Discovery]) -> str:
     bridge_disc = [d for d in discoveries if d.algorithm == "bridge"]
     audio_disc = [d for d in discoveries if d.algorithm == "audio_knn"]
 
+    identity = describe_sonic_identity(dna)
+    moods = infer_mood(dna.audio_centroid)
+
     parts = []
     parts.append(f"Your taste agent scanned {dna.n_total} of your tracks across "
-                 f"3 signal layers and {len(_ds.catalog):,} candidates.")
+                 f"3 signal layers and {len(_ds.catalog):,} candidates. "
+                 f"Your sonic identity: {identity}.")
 
     if mert_disc:
         names = ", ".join(f'"{d.track_name}" by {d.artist}' for d in mert_disc)
@@ -185,13 +196,22 @@ def _build_agent_briefing(dna: TasteDNA, discoveries: list[Discovery]) -> str:
 
     if bridge_disc:
         names = ", ".join(f'"{d.track_name}" by {d.artist}' for d in bridge_disc)
-        parts.append(f"GENRE BRIDGES: I found tracks sitting at the boundary between "
-                     f"worlds in your taste — {names}.")
+        mood_str = " and ".join(moods[:2]) if moods else "your sound"
+        genre_bridge = ""
+        if dna.top_genres and len(dna.top_genres) >= 2:
+            genre_bridge = f" between {dna.top_genres[0]} and {dna.edge_genres[0]}" if dna.edge_genres else ""
+        parts.append(f"GENRE BRIDGES: I found tracks sitting at the boundary{genre_bridge} "
+                     f"-- {mood_str} energy that connects worlds in your taste -- {names}.")
 
     if audio_disc:
         top_dev = sorted(dna.deviation_profile.items(), key=lambda x: abs(x[1]), reverse=True)
         if top_dev:
-            parts.append(f"SONIC MATCH: Your ears are unusually tuned to {top_dev[0][0]}. "
+            feat, z = top_dev[0]
+            direction = "high" if z > 0 else "low"
+            descriptor = FEATURE_DESCRIPTORS.get((feat, direction), feat)
+            label = FEATURE_LABELS.get(feat, feat)
+            parts.append(f"SONIC MATCH: Your ears are unusually tuned to {label.lower()} -- "
+                         f"a {descriptor} sensibility that sets you apart. "
                          f"I weighted my search by what makes YOU different.")
 
     parts.append("I'm still hunting. Check back tomorrow.")
@@ -248,6 +268,8 @@ def _run_pipeline(req: DNARequest) -> DNAResponse:
     discoveries.extend(discover_audio_knn(dna, _ds, exclude_rowids, exclude_artists, _rowid_to_sid, n=n_audio))
 
     briefing = _build_agent_briefing(dna, discoveries)
+    identity = describe_sonic_identity(dna)
+    moods = infer_mood(dna.audio_centroid)
 
     elapsed_ms = int((time.time() - t0) * 1000)
 
@@ -261,6 +283,9 @@ def _run_pipeline(req: DNARequest) -> DNAResponse:
         audio_centroid={k: round(v, 4) for k, v in dna.audio_centroid.items()},
         audio_stddev={k: round(v, 4) for k, v in dna.audio_stddev.items()},
         deviation_profile={k: round(v, 3) for k, v in dna.deviation_profile.items()},
+        sonic_identity=identity,
+        moods=moods,
+        feature_labels=FEATURE_LABELS,
         tracks=[
             TrackInfo(
                 name=t.name,
