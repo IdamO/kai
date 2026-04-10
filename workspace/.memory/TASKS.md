@@ -55,15 +55,33 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 - All data ingestors (112.5M+ transitions)
 
 ### Needs Idam's Attention
-- **Tax deadline April 15** (9 days) — Action plan at files/tax-installment-action-plan.md
-- **Verra 93A: brief FINAL** — Forward to Gary Allen (617-575-9595). Deposit deadline: Sep 11, 2026.
-- **Apolline's birthday April 10** — Turns 28. Reminder jobs set.
+- **Tax deadline April 15** (6 days) — $91,647 owed. Action plan at files/tax-installment-action-plan.md. Call IRS 800-829-1040 for installment agreement.
+- **Apolline birthday Apr 10 — place 3 orders TONIGHT**: (1) email orders@rossirovetti.com for flowers, (2) DoorDash Arsicault pastries 8:30 AM, (3) DoorDash Party City balloons 8:30 AM. All to 555 Bryant St.
+- **Apolline birthday gift**: Direction TBD. Musical bridge infrastructure built (index.html + compute_bridge.py). Paused per Idam instruction — waiting for creative direction.
+- **Verra 93A — Clifford consultation TOMORROW 1 PM PT** (4 PM ET). Zoom: 843 2538 8506 / Passcode 915998. Key Qs: contingency/hybrid fee, settlement range, timeline. Reminder job #197 set for 12:45 PM PT.
+- **Verra 93A — Ellen Tanowitz**: Has full doc package, rates unknown. Compare after Clifford.
+- **Share payment**: Both founders owe $45 each to Kyma Computer Inc. Deferred to Monday (Mercury login).
 - **Emily White: text her** — 304-941-8118 re Shibuya TestFlight.
 
 ### Waiting On Others
-- **Clerky payment** — Blocked on Jessica Brodsky attorney review. Monitor job #165.
+- **Clerky payment** — DONE. $819 paid Apr 8, $100 refund pending from Clerky (Venturous Counsel discount).
+- **Clerky 83(b) managed elections** — DONE. Both founders filed Apr 9. $298 total. Clerky mails to IRS.
+- **Notion for Startups** — BLOCKED. "Kyma Space 2.0" showing ineligible despite support confirming eligibility. Follow-up sent Apr 9, awaiting human response.
+- **Share payment** — Both founders owe $45 each to Kyma Computer Inc via ACH/check. Idam aware.
+- **Domestic partner listing** — Michael Young recommends listing Apolline as domestic partner in Clerky docs (investor cleanliness). Needs Idam decision.
 
-## Recently Completed (Apr 5-6)
+### Deadlines (Startup Credits)
+- **Mixpanel**: Must send data within 90 days of Apr 7 → **deadline Jul 6, 2026**. Reminder job set.
+- **Scaleway**: 100 EUR credit expires **~May 6, 2026**. Needs billing info + valid ID to activate. Reminder job set.
+- **Scaleway Startup Program**: Application under review, 21 business day response → follow up by **~May 5, 2026** if no reply.
+
+## Recently Completed (Apr 5-9)
+- **Clerky 83(b) managed elections** — Both founders filed. $298 total. Clerky mails to IRS. Apr 9.
+- **93A attorney analysis** — 6 attorneys contacted, 2 engaged (Clifford + Tanowitz). Consultation booked Apr 10. Apr 9.
+- **Birthday gift infrastructure** — index.html + compute_bridge.py built. Paused for direction. Apr 9.
+- **Birthday logistics** — Rossi & Rovetti (same block), DoorDash pastries/balloons. Apr 9.
+- **3-day catch-up (Apr 7-9)** — Full email read of both accounts, all state changes cataloged. Apr 9.
+- **Sentry credits** — $5,000 secured (1yr expiry). Apr 9.
 - **Taste DNA MVP** — taste_dna.py end-to-end pipeline validated. Apr 6.
 - **Music IP consultation** — Dual-model verdict: Taste Oracle, not music player. Apr 6.
 - **Creation Engine consultation** — Opus 4.6 + Sonnet 4.5. REBUILD at 80%. Apr 5.
@@ -78,8 +96,8 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 - **MODEL-004 (bridge)**: r=0.969. Crown jewel per consultation.
 
 ### Live Services
-- **Bridge API**: PID 47424 on :8877.
-- **Ingestors**: ~112.5M total transitions. All feeding future training data.
+- **Bridge API**: DOWN — no process on :8877 as of Apr 9. Needs restart.
+- **Ingestors**: ALL DEAD — no ingestor processes found as of Apr 9. ~112.5M total transitions in DB.
 
 ### Data (SSD)
 - Spotify: 256M tracks (33GB metadata), 256M audio features (39GB), 800K MERT (6.1GB)
