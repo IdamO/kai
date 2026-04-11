@@ -37,15 +37,27 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 - No DJ transition labels for compatibility training.
 - No B2B API yet — but architect so intelligence layer IS separable.
 
-### Kyma Engine — Model Status (updated 2026-04-06 23:15)
+### Kyma Engine — RESEARCH LAB MODE (updated 2026-04-10)
 **Repo:** `/Users/idamo/code/kyma-engine/` — see `TASKS.md` there for full queue.
-- **Modal all-layer MERT encoding** — DONE. 200/200 batches, 99971 tracks × 25 layers. 9.5GB. Backed up to R2.
-- **Feature predictor v2** — DONE. R²=0.889 loudness, 0.874 acousticness, 0.866 energy. Layers 18+19, per-dim standardization.
-- **MODEL-001 v2 taste projector** — DONE. val_cos=0.4934. Ceiling confirmed on re-run.
-- **Composite ranker** — TUNED. Sweep winner: 90% taste + 10% transition → NDCG@20=0.5336 (was 0.1796). Now default in code.
-- **R2 backup** — DONE. 28.9GB across 2,171 objects. All embeddings + manifests backed up.
-- **Repo overhaul** — DONE. README, CONTRIBUTING, MODEL-CATALOG, 9 per-model READMEs, TASKS.md. Droppable task protocol added.
-- **Next engine priorities**: Optional finer weight sweep (0.01-step grid), optional 5-layer feature predictor (5120d).
+**Operating mode:** Research lab, not ship mode. Models inspire models. Discoveries rewrite product thesis.
+
+**Completed models (production-ready):**
+- MODEL-001 taste projector (val_cos=0.4934), MODEL-002 V8 transition scorer (NDCG=0.7318, FROZEN)
+- MODEL-004 bridge predictor (r=0.969), Feature Predictor v2 (R²=0.889 loudness)
+- Composite ranker (90% taste + 10% transition → NDCG@20=0.5336)
+- Modal all-layer MERT encoding (99,971 × 25 × 1024), R2 backup (28.9GB)
+
+**COMPLETED: Research Direction Consultation v2 (2026-04-10)**
+- Dual-model consult (Opus 4.6 + Sonnet 4.5 Extended) on claude.ai — both responses extracted + synthesized
+- Verdict v2: `.claude/research-results/2026-04-10-consult-research-directions-verdict.md`
+- DIAG-01 (bridge leakage) RESOLVED from code analysis — taste_vector_128d + participation coefficient P both from same co-occurrence matrix
+- **Key convergence:** Layer-wise decomposition is highest yield, bridge model suspicious (confirmed), 90/10 = redundancy, taste is compositional not single-vector
+- **Combined best of both:** Bradley-Terry (Opus) + playlist training data (Sonnet 4.5) + Friendship Paradox inversion (Opus) + cold-start via layer-weight vectors (Sonnet 4.5)
+- **Execution order:** (1) Diagnostics [Week 1: MERT-only retrain, asymmetry, gamma split, redundancy], (2) Layer-wise Bradley-Terry on playlist+DJ transitions [Weeks 2-4], (3) Wormhole + niche routing [Weeks 4-6], (4) Transition grammar + temporal dynamics [Weeks 6-10]
+
+**5 tasks unblocked (2026-04-10):** Fork Predictor, Trail Embedding, MODEL-005 Vibe Space, MERT LoRA Fine-Tune, Resonance Predictor — all with concrete paths in kyma-engine TASKS.md
+
+**Next engine priorities**: Start DIAG-01 (bridge leakage test) + DIAG-02 (7D decomposition) + DIAG-03 (transition asymmetry). All local compute, no GPU needed.
 
 ### Existing Infrastructure (KEPT — feeds Taste Oracle)
 - FAISS 254.8M × 12d index
@@ -55,11 +67,10 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 - All data ingestors (112.5M+ transitions)
 
 ### Needs Idam's Attention
-- **Tax deadline April 15** (6 days) — $91,647 owed. Action plan at files/tax-installment-action-plan.md. Call IRS 800-829-1040 for installment agreement.
-- **Apolline birthday Apr 10 — place 3 orders TONIGHT**: (1) email orders@rossirovetti.com for flowers, (2) DoorDash Arsicault pastries 8:30 AM, (3) DoorDash Party City balloons 8:30 AM. All to 555 Bryant St.
-- **Apolline birthday gift**: Direction TBD. Musical bridge infrastructure built (index.html + compute_bridge.py). Paused per Idam instruction — waiting for creative direction.
-- **Verra 93A — Clifford consultation TOMORROW 1 PM PT** (4 PM ET). Zoom: 843 2538 8506 / Passcode 915998. Key Qs: contingency/hybrid fee, settlement range, timeline. Reminder job #197 set for 12:45 PM PT.
-- **Verra 93A — Ellen Tanowitz**: Has full doc package, rates unknown. Compare after Clifford.
+- **Tax deadline April 15** (5 days) — $91,647 owed. Action plan at files/tax-installment-action-plan.md. Call IRS 800-829-1040 for installment agreement.
+- **Apolline birthday morning deliveries**: Flowers (Rossi & Rovetti), pastries (DoorDash Arsicault), balloons (DoorDash Party City) — Idam was researching last night, confirm orders placed.
+- **Apolline birthday gift**: ✅ SHIPPED v4.7. Latest: bobbing balloon pop game (28 reasons), "See You Again" background music, yay SFX, two-sided hair. Live at Vercel: https://birthday-gift-three-pied.vercel.app + cloudflared tunnel (PID 74161 :8901, PID 77031).
+- **Verra 93A — Clifford consultation Wed Apr 15, 1 PM PT** (4 PM ET). Zoom: 843 2538 8506 / 915998. Reminder job #198 fires 12:45 PM PT. NOTE: Apr 15 is also tax deadline day.
 - **Share payment**: Both founders owe $45 each to Kyma Computer Inc. Deferred to Monday (Mercury login).
 - **Emily White: text her** — 304-941-8118 re Shibuya TestFlight.
 
@@ -77,9 +88,11 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 
 ## Recently Completed (Apr 5-9)
 - **Clerky 83(b) managed elections** — Both founders filed. $298 total. Clerky mails to IRS. Apr 9.
-- **93A attorney analysis** — 6 attorneys contacted, 2 engaged (Clifford + Tanowitz). Consultation booked Apr 10. Apr 9.
-- **Birthday gift infrastructure** — index.html + compute_bridge.py built. Paused for direction. Apr 9.
-- **Birthday logistics** — Rossi & Rovetti (same block), DoorDash pastries/balloons. Apr 9.
+- **93A attorney analysis** — 6 attorneys contacted, Clifford consultation Apr 15. Apr 9.
+- **Venturous doc upload** — 18 Clerky PDFs uploaded to Dropbox K. CLIENT UPLOADS. Audit deferred until fundraise. Apr 10.
+- **Birthday gift v4 SHIPPED** — 9-page journal overhaul: songbirds, star chart (May 16 2020), slingshot game, 28 hearts, Spotify link, CSS scroll-snap book. Apr 10.
+- **Birthday gift v3.1 SHIPPED** — Pencil scribble love letter, PencilJitter engine, 7 scenes, deployed via cloudflared. Apr 9-10.
+- **Birthday logistics** — Rossi & Rovetti (same block), DoorDash pastries/balloons researched. Apr 9.
 - **3-day catch-up (Apr 7-9)** — Full email read of both accounts, all state changes cataloged. Apr 9.
 - **Sentry credits** — $5,000 secured (1yr expiry). Apr 9.
 - **Taste DNA MVP** — taste_dna.py end-to-end pipeline validated. Apr 6.
