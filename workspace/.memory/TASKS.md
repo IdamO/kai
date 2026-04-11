@@ -1,6 +1,6 @@
 # Active Tasks
 
-## Current Focus (updated 2026-04-06 21:10 PDT)
+## Current Focus (updated 2026-04-11 17:30 PDT)
 
 ### BATH PLAYLIST AGENT — Essay-Driven Reframe
 Idam's Apple Pages essays (Jan-Feb 2026) reject Taste DNA as Wrapped 2.0 / identity signaling.
@@ -78,13 +78,15 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 - MODEL-004 bridge predictor (r=0.969)
 - All data ingestors (112.5M+ transitions)
 
-### Needs Idam's Attention
-- **Tax deadline April 15** (5 days) — $91,647 owed. Action plan at files/tax-installment-action-plan.md. Call IRS 800-829-1040 for installment agreement.
-- **Apolline birthday morning deliveries**: Flowers (Rossi & Rovetti), pastries (DoorDash Arsicault), balloons (DoorDash Party City) — Idam was researching last night, confirm orders placed.
-- **Apolline birthday gift**: ✅ SHIPPED v4.7. Latest: bobbing balloon pop game (28 reasons), "See You Again" background music, yay SFX, two-sided hair. Live at Vercel: https://birthday-gift-three-pied.vercel.app + cloudflared tunnel (PID 74161 :8901, PID 77031).
-- **Verra 93A — Clifford consultation Wed Apr 15, 1 PM PT** (4 PM ET). Zoom: 843 2538 8506 / 915998. Reminder job #198 fires 12:45 PM PT. NOTE: Apr 15 is also tax deadline day.
-- **Share payment**: Both founders owe $45 each to Kyma Computer Inc. Deferred to Monday (Mercury login).
+### Needs Idam's Attention (updated 2026-04-11)
+- **Tax deadline April 15** (4 days) — $91,647 owed. >$50K = must CALL IRS 800-829-4933 for long-term installment (online portal caps at $50K). Short-term (180 days, $0 fee) available online at irs.gov/opa but requires ~$15K/month.
+- **Verra 93A — Clifford consultation Tue Apr 15, 1 PM PT** (4 PM ET). Zoom: 843 2538 8506 / 915998. Reminder job #198 fires 12:45 PM PT. Brief: `files/verra-93a-litigation-brief-v5.md`. NOTE: Apr 15 is also tax deadline day.
+- **Share payment**: Both founders owe $45 each to Kyma Computer Inc via Mercury ACH/check.
 - **Emily White: text her** — 304-941-8118 re Shibuya TestFlight.
+
+### Recently Resolved
+- **Apolline birthday gift**: ✅ SHIPPED v4.7. Live at Vercel: https://birthday-gift-three-pied.vercel.app
+- **Apolline birthday deliveries**: Research completed Apr 9 (flowers, pastries, balloons). Idam handling placement.
 
 ### Waiting On Others
 - **Clerky payment** — DONE. $819 paid Apr 8, $100 refund pending from Clerky (Venturous Counsel discount).
@@ -121,8 +123,8 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 - **MODEL-004 (bridge)**: r=0.969. Crown jewel per consultation.
 
 ### Live Services
-- **Bridge API**: DOWN — no process on :8877 as of Apr 9. Needs restart.
-- **Ingestors**: ALL DEAD — no ingestor processes found as of Apr 9. ~112.5M total transitions in DB.
+- **Bridge API**: DOWN since Apr 9. NOT BLOCKING — research uses direct DB queries, not the API.
+- **Ingestors**: ALL DEAD since Apr 9. NOT BLOCKING — 112.5M transitions already in DB is sufficient for current research. Restart when we need fresh data.
 
 ### Data (SSD)
 - Spotify: 256M tracks (33GB metadata), 256M audio features (39GB), 800K MERT (6.1GB)
