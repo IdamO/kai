@@ -37,27 +37,39 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 - No DJ transition labels for compatibility training.
 - No B2B API yet — but architect so intelligence layer IS separable.
 
-### Kyma Engine — RESEARCH LAB MODE (updated 2026-04-10)
-**Repo:** `/Users/idamo/code/kyma-engine/` — see `TASKS.md` there for full queue.
+### Kyma Engine — RESEARCH LAB MODE (updated 2026-04-11)
+**Repo:** `/Users/idamo/code/kyma-engine/` — see `TASKS.md` there for full queue + build priorities.
 **Operating mode:** Research lab, not ship mode. Models inspire models. Discoveries rewrite product thesis.
 
-**Completed models (production-ready):**
+**Production Architecture (decided 2026-04-11):**
+- **64d taste vector from curriculum-trained ProjDot64 on MERT L24 (CLS).** Not 192d.
+- Preference is LINEAR — ProjDot64 (65K params) >> MLP (262K params). No nonlinearity needed.
+- Curriculum training solves specialization trap: min(hard, random) = 0.341 (symmetric).
+- Online EMA updates are provably stable because preference is linear + basis is orthogonal.
+
+**Completed models:**
 - MODEL-001 taste projector (val_cos=0.4934), MODEL-002 V8 transition scorer (NDCG=0.7318, FROZEN)
-- MODEL-004 bridge predictor (r=0.969), Feature Predictor v2 (R²=0.889 loudness)
+- MODEL-004 bridge predictor (r=0.958), Feature Predictor v2 (R²=0.889 loudness)
 - Composite ranker (90% taste + 10% transition → NDCG@20=0.5336)
 - Modal all-layer MERT encoding (99,971 × 25 × 1024), R2 backup (28.9GB)
 
-**COMPLETED: Research Direction Consultation v2 (2026-04-10)**
-- Dual-model consult (Opus 4.6 + Sonnet 4.5 Extended) on claude.ai — both responses extracted + synthesized
-- Verdict v2: `.claude/research-results/2026-04-10-consult-research-directions-verdict.md`
-- DIAG-01 (bridge leakage) RESOLVED from code analysis — taste_vector_128d + participation coefficient P both from same co-occurrence matrix
-- **Key convergence:** Layer-wise decomposition is highest yield, bridge model suspicious (confirmed), 90/10 = redundancy, taste is compositional not single-vector
-- **Combined best of both:** Bradley-Terry (Opus) + playlist training data (Sonnet 4.5) + Friendship Paradox inversion (Opus) + cold-start via layer-weight vectors (Sonnet 4.5)
-- **Execution order:** (1) Diagnostics [Week 1: MERT-only retrain, asymmetry, gamma split, redundancy], (2) Layer-wise Bradley-Terry on playlist+DJ transitions [Weeks 2-4], (3) Wormhole + niche routing [Weeks 4-6], (4) Transition grammar + temporal dynamics [Weeks 6-10]
+**Completed experiments (EXP-R01 Phases 1-5b + DIAG 01-05):**
+- All 5 diagnostics RESOLVED. Bridge leakage confirmed, chemistry genuinely 4D, asymmetry is noise, topology lognormal small-world, embeddings unbiased.
+- EXP-R01: 8 phases. Two-peak confirmed (L5 acoustic + L24 CLS). Preference composes across layers. Subspaces orthogonal. DJs peak at CLS, listeners at acoustic. Hard negatives prove preference is real (81% retention). Curriculum solves specialization. Multi-layer redundant under curriculum.
+- Full results: kyma-engine `TASKS.md` § Experiment Results
 
-**5 tasks unblocked (2026-04-10):** Fork Predictor, Trail Embedding, MODEL-005 Vibe Space, MERT LoRA Fine-Tune, Resonance Predictor — all with concrete paths in kyma-engine TASKS.md
+**COMPLETED: 4-Model Consultation Synthesis (2026-04-11)**
+- 4 responses: Opus 4.6 + Sonnet 4.5 Extended, each on exploratory AND goal-directed prompts
+- Full synthesis: `files/consultation-synthesis-2026-04-11.md`
+- Ranking: #1 Opus Goal (best product intuition), #2 Sonnet Goal (best research depth + novel ideas), #3 Opus Exploratory (best first experiment), #4 Sonnet Exploratory (most creative but scattered)
+- **Meta-finding:** Opus = product strategist, Sonnet = research scientist. Use Opus for prioritization, raid Sonnet for architecture specs.
+- **The single most important insight:** Linearity means feedback loop (anchor + mashup + EMA) is cheap to iterate with linear algebra. Build the loop first.
 
-**Next engine priorities**: Start DIAG-01 (bridge leakage test) + DIAG-02 (7D decomposition) + DIAG-03 (transition asymmetry). All local compute, no GPU needed.
+**Build queue (from synthesis — full details in kyma-engine TASKS.md):**
+- Week 1-2: Stem-ablation ProjDot → Anchor Selection Model → Behavioral EMA → Taste Vector Arithmetic
+- Week 3-4: Fisher-Optimal Mashup Probes → MERT Layer Routing → Curator Residual
+- Month 2: Gift Bridge Midpoint → Anti-Hub Router → Wormhole Detector
+- Month 3+: Bridge Segment Localization, Causal Skip Attribution, Koopman Operator, Persistent Homology
 
 ### Existing Infrastructure (KEPT — feeds Taste Oracle)
 - FAISS 254.8M × 12d index
