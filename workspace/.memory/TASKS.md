@@ -1,5 +1,57 @@
 # Active Tasks
 
+## IMMEDIATE - Account Migrations (2026-04-12)
+
+### GitHub Account/Org Fix
+**Status:** INCOMPLETE - account created wrong
+**Issue:** Account username is "kyma-computer" (should be personal idam@kyma.stream account)
+**Required:**
+1. Change GitHub username from "kyma-computer" to personal work handle
+2. Create GitHub organization "kyma-computer" for team
+3. Transfer kyma-landing repo to org
+4. Document pattern for future employees (personal accounts invited to org)
+
+### Supabase Database Import
+**Status:** BLOCKED - need to run import
+**What:** 900MB pg_dump from personal → business Supabase project
+**Password:** idamssup4base
+**Required:**
+1. Verify connection string in backend/.env
+2. Run pg_restore on business project
+3. Test backend connection
+4. Update kyma-landing to use new database
+
+### PostHog Runtime Fix
+**Status:** BLOCKED - 401 ERRORS PERSIST
+**Issue:** Script loads, key correct (phc_xVUjRFSpQhg9oQj5Jn7Yg2kKmtDa9kxTUfhNyfT34GZo), but API returns 401 "invalid or expired"
+**Completed:** 
+- Verified key in Vercel env vars matches PostHog project
+- Enabled autocapture for web in PostHog dashboard (was OFF)
+- Opened kyma.stream in browser - window.posthog still undefined, 401 errors persist
+**Current investigation:**
+- PostHog account requires re-authentication to access org settings
+- May indicate account-level verification issue causing 401s
+- Possible solutions: re-authenticate account, regenerate API key, create fresh project
+**Next:** Re-authenticate PostHog account or escalate to Idam for account verification
+
+### Cancel Personal Subscriptions
+**Status:** PENDING - verify migrations first
+**Services:** Vercel, Railway, Modal (billing where applicable)
+**Timing:** Only after confirming business accounts fully working
+
+### Clean Personal References
+**Status:** NOT STARTED
+**Required:**
+- Grep workspace for emmanuel.obiahu@gmail.com
+- Update .env files to idam@kyma.stream
+- Update code references
+- Clean documentation
+
+### Notion Service Table
+**Status:** NOT STARTED
+**Location:** Kyma workspace in idam@kyma.stream Notion
+**Columns:** Service | Account Email | Billing Status | Mercury Card | Monthly Cost | Purpose
+
 ## Current Focus (updated 2026-04-11 17:45 PDT)
 
 ### KYMA BRIDGE — Embeddable 12s Mashup Widget (TOP PRIORITY)

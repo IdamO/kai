@@ -112,6 +112,54 @@ Every in-progress task must include enough context for ANY agent to check status
 - Never silently edit another agent's claimed section — note amendments inline
 - Board header: `Updated: {timestamp} by {agent}` — last editor, not sole owner
 
+## TASK EXECUTION PROTOCOL
+
+### Pre-Action Contract (MANDATORY for substantive tasks)
+Before starting ANY substantive task (deploy, config change, data processing, research), write this 5-line contract to the daily log (prepended to [STARTED] entry):
+
+```
+Task type: [deploy|config|research|comms|refactor]
+Closure criterion (from DoD below):
+What observation will prove it's done:
+Who is the "first user" and when will I be them:
+What CLAIM-only statements am I at risk of making:
+```
+
+**Why:** Re-derives rules at point of action when working memory is fresh. Line 5 forces prospective awareness of this task's specific failure mode.
+
+### Task-Type Definition of Done (DoD) Templates
+
+**deploy** (web features, APIs, dashboards, analytics):
+- [ ] Post-deploy smoke test with real HTTP request (curl/browser)
+- [ ] Browser-opened verification showing feature working from end-user perspective (screenshot required)
+- [ ] At least one [OBSERVED] daily log entry with artifact path (not just [CLAIM])
+- [ ] "First user" test: YOU are the first user — interact with it, don't just deploy it
+
+**config** (environment variables, feature flags, settings):
+- [ ] Visual confirmation of config state change (screenshot of dashboard/file showing new value)
+- [ ] Service restart/reload verification if required
+- [ ] At least one [OBSERVED] daily log entry with proof
+
+**research** (investigations, consultations, data analysis):
+- [ ] Sources cited with URLs or file paths
+- [ ] Key findings extracted and logged
+- [ ] Lighter DoD — no browser verification required
+
+**comms** (emails, messages, external communication):
+- [ ] Draft shown to user before sending (unless explicitly pre-approved)
+- [ ] All factual claims verified (URLs visited, names looked up, dates checked)
+- [ ] Thread context read if replying
+
+**refactor** (code changes without behavior change):
+- [ ] Tests pass (or spot-check if no test suite)
+- [ ] Git diff reviewed for unintended changes
+- [ ] Lighter DoD — no end-user verification required
+
+**CLAIM vs OBSERVED tagging:**
+- [CLAIM] = inferred from code/docs/logs ("autocapture should be enabled based on config")
+- [OBSERVED] = has attached artifact ("autocapture enabled: screenshot at .playwright-mcp/posthog-settings.png")
+- Tasks cannot be marked [COMPLETED] with only [CLAIM] lines — at least one [OBSERVED] required
+
 ## COMPACTION RECOVERY
 claude.py mechanically re-injects user-identity.md, behavioral-debt.md, MEMORY.md, TASKS.md, HACKS.md, personal-ops.md, and today's log when RECOVERY.md is detected after compaction. This is automatic — you don't need to re-read those files manually. MEMORY-PRIVATE.md is NOT auto-injected (only inject when task requires PII).
 
