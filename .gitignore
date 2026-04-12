@@ -39,3 +39,4 @@ workspace/.claude/*
 .vscode/
 *.swp
 .venv-mert/
+.venv-train/
