@@ -1,8 +1,22 @@
 # Active Tasks
 
-## Current Focus (updated 2026-04-11 17:30 PDT)
+## Current Focus (updated 2026-04-11 17:45 PDT)
 
-### BATH PLAYLIST AGENT — Essay-Driven Reframe
+### KYMA BRIDGE — Embeddable 12s Mashup Widget (TOP PRIORITY)
+**Decision:** Dual-model consultation (Opus 4.6 + Sonnet 4.5, 2026-04-11) converged: ship Bridge.
+**What:** Curators paste 2 Spotify track URLs → get permalink with 12s crossfade player + OG cards.
+**Why:** Share the MUSIC, not the LISTENER. Bath thesis compatible. Curators = distribution (Burt's structural holes). SoundCloud embed playbook.
+**Kill criterion:** 3+ unprompted curator re-uses in 14 days.
+**Code:** `kyma-engine/api/bridge.py` on :8881.
+**Synthesis:** `files/consultation-synthesis-2026-04-11.md`
+
+- [x] **Bridge MVP** — DONE. `api/bridge.py` on :8881. Search, create, permalink, 12s crossfade, OG meta, analytics. Commit 2ec2e00.
+- [x] **Quality filter** — DONE. DeepPref cosine scoring. Range: -97% (anti-correlated) to 98% (highly compatible).
+- [x] **Curator seeding** — DONE. 10 bridges created across genres. 10 Substack curators researched and matched. Outreach plan: `docs/curator-seeding-plan.md`. Commit 0b461fa. **BLOCKED on public URL** (ngrok/deploy) + Idam's "send it" for outbound emails.
+- [ ] **Hedge: arxiv preprint** — SKIPPED for now. Preprint stronger with 14-day engagement data from curator seeding. Revisit after kill window.
+- [ ] **Hedge: consulting outreach** — SKIPPED. Email-gated + premature before primary bet has 14 days to prove itself.
+
+### BATH PLAYLIST AGENT — Essay-Driven Reframe (PAUSED — infra feeds Bridge)
 Idam's Apple Pages essays (Jan-Feb 2026) reject Taste DNA as Wrapped 2.0 / identity signaling.
 Reframe doc: `files/product-v3-bath-playlist.md`
 Core thesis: Agent sends you music you'll love without you explaining yourself. Mashup = preview asymmetry solver (30-90s → 15s). No profiles, no deviation charts, no signaling.
@@ -30,7 +44,8 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 **Phase 4: Measure & Pivot (Month 3)** ← INFRASTRUCTURE COMPLETE
 - [x] **Success metric** — ✅ discovery_completion_rate in GET /api/metrics. 57% of unique discovered tracks finished (4/7). Proxy for "listened to unheard track" (can't detect library add without Spotify OAuth). Commit 2670ca7.
 - [x] **Consumer product gate** — ✅ phase4_gate in /api/metrics. Automated check: k > 0.3 AND monthly_churn < 8%. Currently passing on test data (k=1.0, churn=0%). MAU/WAU computed from 28d/7d signal windows. Commit 2670ca7.
-- [ ] **Real user validation** — Gate infrastructure built. External tunnel live: https://guitar-frequency-stuck-processes.trycloudflare.com (ephemeral, PID 53739). Weekly digest cron wired (Job 201, 7-day interval). Need real users to generate meaningful data. Idam notified (Job 200).
+- [ ] **Real user validation** — Gate infrastructure built. Weekly digest cron wired (Job 201, 7-day interval). Need real users to generate meaningful data. Idam notified (Job 200).
+  - **Dogfood UI LIVE** on :8880 (`api/dogfood.py`, commit ba40f47). Idam's library: 962/4,280 tracks matched to MERT set. Play-time-weighted 64d taste vector. Discovery + mashup preview + Like/Nope signals with EMA learning. 11ms response.
 
 ### DO NOT BUILD (from verdict)
 - No playback service. No p.scdn.co. No audio distribution.
@@ -63,12 +78,22 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 - EXP-R01: 10 phases (1-7 + diagnostics). Two-peak confirmed (L5 acoustic + L24 CLS). Subspaces orthogonal. DJs peak at CLS, listeners at acoustic. Hard negatives prove preference is real (81% retention). Curriculum solves specialization. **Phase 6: DeepPref +32% over ProjDot64 (linear in learned non-linear subspace). Phase 7: multi-layer CONFIRMED redundant even with deep encoding. Architecture FINAL: DeepPref L24, 674K params, 64d, min=0.4600.**
 - Full results: kyma-engine `TASKS.md` § Experiment Results
 
-**COMPLETED: 4-Model Consultation Synthesis (2026-04-11)**
+**COMPLETED: 4-Model Consultation Synthesis #1 (2026-04-11 AM)**
 - 4 responses: Opus 4.6 + Sonnet 4.5 Extended, each on exploratory AND goal-directed prompts
 - Full synthesis: `files/consultation-synthesis-2026-04-11.md`
-- Ranking: #1 Opus Goal (best product intuition), #2 Sonnet Goal (best research depth + novel ideas), #3 Opus Exploratory (best first experiment), #4 Sonnet Exploratory (most creative but scattered)
-- **Meta-finding:** Opus = product strategist, Sonnet = research scientist. Use Opus for prioritization, raid Sonnet for architecture specs.
-- **The single most important insight:** Feedback loop (anchor + mashup + EMA) is cheap to iterate — comparison is still cosine similarity in 64d (linear), even though the encoder is non-linear. Build the loop first.
+- **Key insight:** Feedback loop (anchor + mashup + EMA) is cheap to iterate — cosine similarity in 64d, even though the encoder is non-linear.
+
+**COMPLETED: "What's Next?" Consultation #2 (2026-04-11 PM)**
+- 2 responses: Opus 4.6 Extended + Sonnet 4.5 Extended on "highest-leverage next work?"
+- Full synthesis: `files/consultation-synthesis-2026-04-11.md` (overwritten with #2 synthesis)
+- Opus responses: `.playwright-mcp/opus-response.md`, Sonnet: `.playwright-mcp/sonnet-response.md`
+- **VERDICT: Ship "Kyma Bridge" — embeddable 12s mashup widget for music curators (B2B2C)**
+  - Opus product (Bridge widget for Pitchfork/Substack/NTS) + Sonnet risk framework (Gambler's Ruin)
+  - Distribution via curators (they already have the audience), not outbound B2B sales
+  - Kill criterion: 3+ unprompted curator re-uses in 14 days
+  - Hedge: arxiv preprint (4hr) + consulting outreach ($200/hr stem ablation research)
+  - **Core insight:** Share the MUSIC, not the LISTENER — Bridge is shareable AND privacy-compatible
+  - STOP: more research phases, dogfood UI expansion, fundraise deck polish
 
 **Build queue (dependency-ordered, no time-boxing — full details in kyma-engine TASKS.md):**
 - ~~Behavioral EMA~~ ✅ DONE | ~~Taste Vector Arithmetic~~ ✅ DONE
@@ -76,8 +101,11 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 - ~~MERT Layer Routing~~ ✅ (L6 beats L24 raw, per-user routing +6.8%, 65% users benefit)
 - ~~Curator Residual~~ ✅ (curators genuinely distinct, inter-cos 0.376, 2D effective dim, α=0.1 → 91% unique discoveries)
 - ~~Koopman Operator~~ ✅ (time-delay DMD τ=3: -65% error vs naive, Takens embedding, zero oscillatory modes)
-- **BLOCKED:** Stem-ablation DeepPref (Demucs venv), Bridge Segment Localization (needs stems)
-- **RESEARCH:** Causal Skip Attribution (needs product loop), Persistent Homology, Temporal Community Detection
+- ~~Stem-ablation DeepPref~~ ✅ (VOCALS=ZERO preference signal ρ=-0.017; other/texture=91.5% of signal ρ=0.214; bass=80.1%; drums=77.5%. Demucs blocker resolved: .venv-train arm64+MPS)
+- ~~Bridge Segment Localization~~ ✅ (signal-processing scorer, 50/50 tracks, score 0.355-0.864, top segments all voc=0, mid-track peaks 34%, 8.6s mean duration)
+- ~~Persistent Homology~~ ✅ (4d manifold, 262 persistent loops, 2 permanent voids, fully connected, NOT hierarchical)
+- ~~Temporal Community Detection~~ ✅ (674 communities, 18.8% cross-community, Take Me Out = #1 bridge track across 72 comms, language=tightest bubbles)
+- **RESEARCH:** Causal Skip Attribution (needs product loop)
 
 ### Existing Infrastructure (KEPT — feeds Taste Oracle)
 - FAISS 254.8M × 12d index
@@ -133,6 +161,7 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 ### Live Services
 - **Bridge API**: DOWN since Apr 9. NOT BLOCKING — research uses direct DB queries, not the API.
 - **Ingestors**: ALL DEAD since Apr 9. NOT BLOCKING — 112.5M transitions already in DB is sufficient for current research. Restart when we need fresh data.
+- **ngrok dashboard**: FREE PLAN BANDWIDTH EXHAUSTED (Apr 11). Resets May 1, 2026. Dashboard and external tunnel endpoints blocked until then. Consider upgrading or using cloudflared tunnel as alternative.
 
 ### Data (SSD)
 - Spotify: 256M tracks (33GB metadata), 256M audio features (39GB), 800K MERT (6.1GB)
