@@ -38,3 +38,4 @@ workspace/.claude/*
 .idea/
 .vscode/
 *.swp
+.venv-mert/

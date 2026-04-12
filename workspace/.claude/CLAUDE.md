@@ -167,7 +167,7 @@ You have unique tools. Use them for verification:
 Never say "done" on a build without running it. Your runtime IS available — use it.
 
 ### DASHBOARD VERIFICATION PROTOCOL (MANDATORY — every dashboard change)
-The dashboard lives at `https://unadmired-twana-instructedly.ngrok-free.dev/`. After ANY change to dashboard HTML, CSS, or JS:
+The dashboard lives at `https://kai.kyma.stream`. After ANY change to dashboard HTML, CSS, or JS:
 1. **Open the dashboard** via Playwright MCP: `mcp__playwright__browser_navigate` to the dashboard URL
 2. **Screenshot the Stream view** (default view) — verify events render, filter buttons work
 3. **Click Overview** — screenshot — verify NEEDS ATTENTION panel, status strip, priority stack, live activity

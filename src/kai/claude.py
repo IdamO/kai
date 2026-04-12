@@ -113,6 +113,14 @@ class PersistentClaude:
     # ChatGPT-auth Codex uses its own model set, not API models like gpt-4.1.
     _CODEX_MODELS: dict[str, str] = {}
 
+    # Pin short model names to explicit model IDs so we control which version runs.
+    # "sonnet" -> Sonnet 4.5 (not 4.6) per Idam's preference (2026-04-10).
+    _MODEL_IDS: dict[str, str] = {
+        "opus": "claude-opus-4-6",
+        "sonnet": "claude-sonnet-4-5-20250929",
+        "haiku": "claude-haiku-4-5-20251001",
+    }
+
     def __init__(
         self,
         *,
@@ -362,7 +370,7 @@ class PersistentClaude:
             "stream-json",
             "--verbose",
             "--model",
-            self.model,
+            self._MODEL_IDS.get(self.model, self.model),
             "--permission-mode",
             "bypassPermissions",
             "--effort",
@@ -377,9 +385,10 @@ class PersistentClaude:
         else:
             cmd = claude_cmd
 
+        resolved_model = self._MODEL_IDS.get(self.model, self.model)
         log.info(
-            "Starting persistent Claude process (model=%s, user=%s)",
-            self.model,
+            "Starting persistent Claude process (model=%s -> %s, user=%s)",
+            self.model, resolved_model,
             self.claude_user or "(same as bot)",
         )
 
