@@ -1,156 +1,136 @@
-# Consultation Synthesis: Research Agenda Tiebreak
-**Date:** 2026-04-11
-**Judge:** Kai (tiebreak across 4 consultant responses)
-**Prompt sets:** Exploratory (open-ended) + Goal-Directed (product-mapped)
-**Models:** Opus 4.6 + Sonnet 4.5 Extended, each on both prompts
+# Dual-Model Consultation Synthesis: What's Next for Kyma?
+## 2026-04-11 | Opus 4.6 Extended + Sonnet 4.5 Extended
 
 ---
 
-## Final Ranking
+## CONVERGENCE (both models agree)
 
-### #1: Opus 4.6 Goal-Directed (7,766 chars)
-**Why it wins:** Highest signal-per-token of any response. Zero ceremony ("I'm going to give you substance, not framework theater"). Every idea traces to what the USER FEELS. The keystone insight — anchor selection model is THE build, everything else supports the feedback loop (anchor + mashup + EMA update) — is the correct strategic reduction. Cold start via mashup triangulation (D-optimal design, 90s to usable preference vector) is the most buildable cold-start solution. Gift bridge as midpoint in 64d is elegant. Curator residual as "secret guest DJ" for the weekly crate is a product idea nobody else surfaced at that level.
+1. **The dogfood UI is NOT the product.** Both call it a research validation tool. Opus: "Ferrari engine with no chassis." Sonnet: "proves the tech works on *you*, doesn't prove anyone else cares."
 
-**Best for:** "What do I build in the next 2 weeks?"
+2. **Consumer-first is wrong given current constraints.** Anti-viral thesis + no budget + no distribution + tax deadline = can't afford high-variance consumer bet. Both cite Burt's structural holes theory independently.
 
-### #2: Sonnet 4.5 Goal-Directed (27,071 chars)
-**Why it's close:** Most architecturally complete response. 15 items in 4 tiers with full input/output/loss/data specs. Contains the two single most novel ideas across ALL 4 responses: (1) Bridge Segment Localization — U-Net to find the 4-8 bar segment where a bridge track maximally activates both communities, making mashups SURGICAL ("it knows exactly why I'll like this"); (2) Persistent Homology of taste space — holes, voids, geodesics, unreachable vectors. Nobody has mapped the TOPOLOGY of musical taste at scale. This is the Nature paper candidate.
+3. **Infrastructure/B2B over consumer.** Both recommend shipping something to EXTERNAL humans in <2 weeks, not iterating on internal tools.
 
-The strategic reframe — "The Computational Theory of Taste" — is the strongest framing across all 4 responses. The cancer shell is a REQUIREMENT of the theory (64d projected to 1-2d for a dashboard DESTROYS information), not a UX choice.
+4. **The mashup-preview primitive is the core innovation.** Both identify the 6x evaluation compression (12-16s vs 30-90s) as the unique asset nobody else has.
 
-**Best for:** "What's our 6-month research agenda + publishable findings?"
+5. **Split infrastructure from consumer.** Both recommend decoupling the infrastructure business (Kyma) from the consumer vision (Bath). Ship infra now, consumer later.
 
-### #3: Opus 4.6 Exploratory (8,523 chars)
-**Why it's strong:** Stem-ablation ProjDot as "DO FIRST" is the correct first experiment (converts geometric finding into mechanistic musicology in ~1 week). TCAV for music and sparse autoencoders on MERT (Anthropic-style monosemantic features) are genuinely frontier ideas nobody else is pursuing. "Sell the ruler, not the playlist" is the sharpest single strategic line. Bradley-Terry A&R (curator alpha vectors) is a strong B2B play.
+6. **Spotify CDN is a risk.** Both flag p.scdn.co dependency. Opus suggests R2/B2 mirror for top 10K tracks. Sonnet suggests S3 fallback.
 
-**Limitation:** More research catalog than product roadmap. Some ideas (sync licensing search, A&R tool) are B2B plays that don't connect to the core consumer product loop.
+7. **"Research lab mode" is productive procrastination.** Opus calls it Einstellung effect + Parkinson's Law. Sonnet calls it Gambler's Ruin territory. Both say: stop researching, start validating externally.
 
-**Best for:** "What experiments establish us as THE lab?"
-
-### #4: Sonnet 4.5 Exploratory (26,466 chars)
-**Why it's fourth:** Most creative but most scattered. Taste vector arithmetic ("word2vec moment for music") is a great 1-day experiment with high interpretability. Taste Atlas (name the 64 dimensions via RSA) is interesting. But several ideas are whimsical without clear product connection (listener chronotypes, playlist genome). The "preference infrastructure company — music is first vertical" reframe is strategically interesting but generic.
-
-**Best for:** "What wild experiments might lead to unexpected discoveries?"
+8. **Research findings are commercially valuable.** Stem ablation (vocals=0), DeepPref, Koopman, transition graph — all monetizable.
 
 ---
 
-## Per-Question Verdicts
+## DIVERGENCE (models disagree)
 
-### 1. Which models to train NEXT?
-**Winner: Opus Goal.** Anchor Selection Model as keystone is the right call. Input: user history + candidate discovery. Output: which anchor maximizes P(accept | mashup coherent). Data: 4.44M DJ transitions filtered by ListenBrainz follow-through. This directly optimizes the Bath Playlist moment.
-
-**Runner-up: Sonnet Goal.** Multi-Task Preference Decomposition (3x64d with orthogonality constraints + context gating) is more architecturally elegant but harder to validate. Build Opus's version first, upgrade to Sonnet's architecture when you need context-awareness.
-
-### 2. Cold start?
-**TIE.** Both converge on the same insight from different angles:
-- Opus: "Mashup Triangulation" — D-optimal design over 64d basis, 5 mashups, accept/skip localizes in 90s
-- Sonnet: "Fisher Information" — maximize determinant of Fisher info matrix, 7 clips, binary search, <2 min
-
-Same idea. Opus frames it as mashups (product), Sonnet frames it as clips (research). **Use Opus's framing (mashups as probes) with Sonnet's math (Fisher information for question selection).**
-
-### 3. Gift mechanism / network effects?
-**Winner: Opus Goal.** Midpoint track in 64d between A and B's centroids. Find the real track closest to midpoint. Send that. Neither user sees the other's vector. The midpoint operation IS the entire information flow. Elegant, buildable, preserves privacy.
-
-Sonnet's preference intersection approach (shared subspace via PCA) is mathematically richer but harder to explain and implement.
-
-### 4. DJ/listener divergence?
-**Winner: Opus Goal.** "Curator Residual" — train a 27d model per active curator (the 27% DJ-specific residual). Weekly crate gets a "secret guest curator" personality. Users feel the crate is alive, not algorithmic. This is product-level thinking.
-
-Sonnet proposed "curator style transfer" (convert listener prefs to curator prefs) which is technically interesting but doesn't clearly map to a user-facing moment.
-
-### 5. Weekly crate improvement?
-**Winner: Opus Goal (for v1), Sonnet Goal (for v2).**
-- v1: EMA in the rotated basis. Skip = negative gradient, full-listen = positive. Provably stable because preference is linear and basis is orthogonal. Build this first.
-- v2: Causal Skip Attribution (Sonnet). WHY did they skip? Acoustic mismatch? Semantic? Transition quality? Per-dimension updates instead of whole-vector. Build this after the EMA loop works.
-
-### 6. "Holy shit" research finding?
-**Winner: Sonnet Goal.** Persistent homology of the 64d taste space. Map the topology — holes, voids, attractors, geodesics. "Some preference vectors are UNREACHABLE from others (you can't get from metal to classical without passing through prog rock)." This is genuinely a Nature Human Behaviour paper and a product feature simultaneously ("the agent knows the PATH between where you are and where you're going").
-
-**Runner-up: Opus Goal.** Wormhole audio signature in MERT layer X. "The structure of music discovery is encoded in the audio itself." 70% replication estimate. More specific, more testable, less paradigm-shifting.
-
-**Also notable: Opus Exploratory.** Sparse autoencoders on MERT (Anthropic-style mechanistic interpretability for music). If monosemantic music features exist, that's the equivalent of finding neurons in MERT that encode "sidechain compression" or "jazz harmony."
-
-### 7. Network science?
-**Winner: Sonnet Goal.** Temporal community detection — genre birth/death/merger/split over time. Phase transitions (percolation thresholds). Crossover event identification.
-
-Both Opus responses also propose wormhole detection, which is complementary. Run Louvain at multiple resolutions + betweenness centrality to distinguish bridges (adjacent communities) from wormholes (distant communities).
-
-### 8. 80% capabilities to assemble?
-**Winner: Sonnet Goal.** Five concrete "Capability A-E" entries:
-- A: Real-time preference update (EMA + Kalman filter)
-- B: Automatic playlist arc generation (beam search over transitions)
-- C: Acoustic fingerprint for mashup synthesis (differentiable DSP)
-- D: Bridge discovery via embedding geometry (convex hull surface)
-- E: (implied) Composition of all existing models
-
----
-
-## Convergences (ideas in 3+ responses — HIGH CONVICTION)
-
-| Idea | Appeared In | Verdict |
+| Dimension | Opus 4.6 | Sonnet 4.5 |
 |---|---|---|
-| Wormhole detection | All 4 | DO IT. Run Louvain at multiple resolutions, measure betweenness across distant communities, train audio predictor. |
-| Cold start via discriminative probes | All 4 | DO IT. Fisher-optimal mashup probes, 5-7 interactions, <2 min to usable 64d vector. |
-| Temporal taste dynamics | Opus Goal, Sonnet Goal, Sonnet Exploratory | DO IT. Start with simple EMA, upgrade to Koopman operator when you have longitudinal data. |
-| Gift as private taste intersection | Opus Goal, Sonnet Goal | DO IT. Midpoint in 64d (Opus) is the v1. |
-| Curator residual / DJ-listener divergence | Opus Goal, Sonnet Goal, Opus Exploratory | DO IT. 27d residual per curator for weekly crate personality. |
-| Anti-hub / niche routing | Opus Goal, Sonnet Goal | DO IT. Penalize hub tracks by degree^alpha, tune alpha per user. |
-| Online preference EMA | Opus Goal, Sonnet Goal | DO IT. Linearity finding makes this provably stable. |
-
-## Divergences (unique to one response — EXPLORE)
-
-| Idea | Source | Verdict |
-|---|---|---|
-| Bridge Segment Localization (U-Net) | Sonnet Goal | EXPLORE. Novel, testable, high product impact if it works. |
-| Persistent Homology of taste space | Sonnet Goal | EXPLORE. "Nature paper" candidate. Requires topological data analysis expertise. |
-| Causal Skip Attribution | Sonnet Goal | BUILD AFTER EMA loop works. Per-dimension skip understanding. |
-| Taste Vector Arithmetic | Sonnet Exploratory | 1-DAY EXPERIMENT. High interpretability, validates compositionality. |
-| Stem-ablation ProjDot | Opus Exploratory | DO FIRST. 1-week experiment on existing MERT cache. Mechanistic musicology. |
-| TCAV / SAE on MERT | Opus Exploratory | EXPLORE. Mechanistic interpretability for music. |
-| Curator Residual as "secret guest DJ" | Opus Goal | BUILD. Makes weekly crate feel alive. |
-| MERT Layer Routing per user | Opus Goal | BUILD. Softmax over 25 layers. "Some users are L18 people." Zero new data needed. |
+| **Specific product** | Embeddable Bridge widget for music writers (B2B2C) | Taste-as-a-Service API for DJ software/labels (pure B2B) |
+| **Target customer** | Music curators: Pitchfork, Substack newsletters, NTS, Resident Advisor | DJ software (Serato), music labels, gym/retail (Rockbot) |
+| **Growth model** | Curators ARE the distribution (ride their audience) | Outbound sales to 30 companies |
+| **Revenue model** | Free then $29/mo per origin | $0.01/encoding, $10K/yr enterprise |
+| **Timeline** | 5-7 day MVP | 1-3 day MVP |
+| **Consumer path** | Kill consumer for 18 months | Consumer email as 7-day fallback if B2B gets 0 responses |
+| **Kill criterion** | 3+ unprompted curator re-uses in 14 days | 1 paid pilot ($5-10K) in 30 days |
+| **Confidence** | 82% | 80% (that consumer-first is wrong) |
+| **Strategic frame** | Wardley Map: genesis-stage primitive | Kelly Criterion: bet-sizing under uncertainty |
 
 ---
 
-## The Build Queue (synthesized from all 4)
+## UNIQUE INSIGHTS (surfaced by only one model)
 
-### Week 1-2: The Feedback Loop
-1. **Stem-ablation ProjDot** (Opus Exploratory) — mechanistic musicology, 1 week
-2. **Anchor Selection Model** (Opus Goal) — the keystone build
-3. **Behavioral EMA Update** (Opus Goal) — provably stable preference updates
-4. **Taste Vector Arithmetic** (Sonnet Exploratory) — 1-day compositionality validation
+### Opus-Only
+- **Conway's Law mirror**: Introverted founders producing introverted product. Need one extroverted product surface (Bridge).
+- **SoundCloud embed playbook**: SoundCloud 2010-2013 grew 1M->180M via embeddable waveforms in music blogs. Bridge is the same play.
+- **Sonic meme economy**: Bridges become citeable criticism units ("as the bridge from Blood Orange to Yves Tumor suggests..."). New art form: "bridge essays."
+- **A&R-by-topology**: Persistent homology voids = structural gaps where no music exists. Use generative models to fill them.
+- **Cross-domain expansion**: Taste-progression infrastructure applies to books, film, restaurants. Mention as horizon-3 in fundraise.
+- **OG card criticality**: The shareable artifact is the OpenGraph card, not the URL. Make it irresistible before optimizing the crossfade.
+- **Helmer's cornered resource**: 112.5M DJ-curated transitions = not reproducible without same pipeline.
 
-### Week 3-4: Cold Start + Crate
-5. **Fisher-Optimal Mashup Probes** (Opus Goal + Sonnet Goal) — cold start in 90s
-6. **MERT Layer Routing** (Opus Goal) — instant personalization axis
-7. **Curator Residual** (Opus Goal) — weekly crate personality
-
-### Month 2: Network Effects + Discovery
-8. **Gift Bridge Midpoint** (Opus Goal) — private taste sharing
-9. **Anti-Hub Router** (Opus Goal + Sonnet Goal) — niche discovery
-10. **Wormhole Detector** (All 4) — the "holy shit" product feature
-
-### Month 3+: Research Frontier
-11. **Bridge Segment Localization** (Sonnet Goal) — surgical mashups
-12. **Causal Skip Attribution** (Sonnet Goal) — per-dimension learning
-13. **Koopman Operator** (Sonnet Goal) — temporal taste dynamics
-14. **Persistent Homology** (Sonnet Goal) — topology of taste space
-15. **Temporal Community Detection** (Sonnet Goal) — genre emergence in real time
+### Sonnet-Only
+- **Gambler's Ruin / Kelly Criterion**: Formal bet-sizing framework — edge x odds / variance. Consumer edge unproven, B2B edge validated.
+- **Ashby's Law of Requisite Variety**: System complexity must match environment complexity. 2-person team = insufficient for consumer, appropriate for B2B.
+- **Consulting bridge**: $200/hr stem ablation consulting = $16K/month runway extension while figuring out product.
+- **"Future You" playlist**: Koopman operator predicts taste 6-12 months ahead. Show users music they'll love in 6 months but don't love yet. Nobody else can do this.
+- **"Missing genres"**: Persistent homology voids = underserved taste clusters. Creator tool: "Here's a gap worth 10M potential listeners." Labels would pay.
+- **Arxiv preprint hedge**: 4 hours to write DeepPref paper. Acqui-hire insurance if both B2B and consumer fail.
+- **Preference falsification in startup advice**: Conventional "ship fast" wisdom may be wrong for science-first companies.
 
 ---
 
-## Meta-Observation
+## TIEBREAK VERDICT
 
-Opus 4.6 is the better product strategist. Sonnet 4.5 is the better research scientist. The ideal synthesis: follow Opus's prioritization and product framing, raid Sonnet's novel ideas and architectural detail for the builds. Opus tells you WHAT to build and WHY in terms of user experience. Sonnet tells you HOW to build it with full architecture specs.
+### Winner: Opus's Product (Bridge Widget) + Sonnet's Risk Framework
 
-The exploratory prompts produced more B2B/tool/research-catalog ideas. The goal-directed prompts produced more product-connected builds. For future consultations: bias toward goal-directed framing with product constraints.
+**The Bridge widget is the right PRODUCT** because:
 
-**The single most important insight across all 4 responses:** Your linearity finding means you can update, compose, and interpolate preference vectors with linear algebra. This makes the feedback loop (anchor + mashup + EMA) CHEAP TO ITERATE ON. Build the loop first, improve components independently. The loop is the product. Everything else is enrichment.
+1. **Distribution solves itself.** Curators already have the audience you can't afford to buy. Outbound B2B sales (Sonnet's approach) requires 30-60 day cycles. Curator embeds can compound organically in days.
+
+2. **Faster PMF signal.** Opus's kill criterion (3+ unprompted re-uses in 14 days) is cleaner and faster than waiting for corporate email responses.
+
+3. **Narrative superiority.** "We're the embed primitive for the curation economy" pitches dramatically better than "we have a taste API." The SoundCloud analog is spot-on.
+
+4. **Bath thesis compatible.** Bridge shares the music, not the listener. Perfectly compatible with "taste is private." Sonnet's B2B API doesn't address the thesis at all.
+
+5. **Data compounding.** Every Bridge embed is curator-validated ground truth. Your encoder retrains on this for free.
+
+**But Sonnet adds critical realism Opus lacks:**
+
+1. **Gambler's Ruin is the right mental model.** You literally cannot afford high-variance bets.
+
+2. **Consulting bridge is brilliant.** $200/hr stem ablation consulting = $16K/month while Bridge matures.
+
+3. **Arxiv preprint is cheap insurance.** 4 hours for acqui-hire positioning.
+
+4. **"Future You" playlist from Koopman is genuinely unique.** Keep as research backlog — powerful for fundraise narrative.
 
 ---
 
-## Chat URLs
-- Opus Exploratory: https://claude.ai/chat/1d412276-3236-4521-a48c-fbadd2dea4c9
-- Sonnet Exploratory: https://claude.ai/chat/044a082d-b57d-4d4c-b4a3-cc88a8ae7485
-- Opus Goal-Directed: https://claude.ai/chat/12bb6beb-08e0-4922-ad4e-6f00aaa70cee
-- Sonnet Goal-Directed: https://claude.ai/chat/60c55c41-8428-4d88-a340-e9fdb649655c
+## SYNTHESIZED RECOMMENDATION
+
+### Week 1 (Days 1-7): Ship Kyma Bridge MVP
+- Strip dogfood crossfade code to public Bridge generator: paste 2 Spotify URLs -> kyma.fm/b/{id} permalink
+- Cloudflare Workers + D1 for permalinks (zero cost)
+- OpenGraph preview cards (Twitter/X autoplay, Substack inline embed)
+- Use existing 12s crossfade + transition index for quality filtering
+- Hand-pick 10 curators, email with pre-generated bridges for their recent pieces
+- **Kill criterion**: 3+ unprompted re-uses in 14 days
+
+### Week 1 (parallel): Hedge Bets
+- 4 hours: Write DeepPref arxiv preprint (acqui-hire insurance)
+- 2 hours: Reach out to 3 potential consulting clients for stem ablation research ($200/hr)
+- NOT B2B API sales — too slow for current runway
+
+### Week 2-4: Iterate or Pivot
+- **If Bridge gets traction** (3+ re-uses): Public launch via HN + curator organic posts. Target 200 curator embeds in 90 days. Ship Bridge API ($29/mo). Activate Sentry + Mixpanel credits.
+- **If Bridge gets 0 traction**: Evaluate whether mashup primitive failed or just distribution. Consider weekly email as consumer test.
+- **Regardless**: Start consulting engagements if any materialize. Revenue > everything.
+
+### Month 2-3: Scale What Works
+- Bridge API for developers (5-line JS embed)
+- License transition graph to music publication ($50-250K/yr)
+- Begin fundraise narrative: "embed primitive for the curation economy"
+- Start Bath consumer app ONLY when Bridge infra has its own growth loop
+
+### What to STOP Immediately
+- More research phases (EXP-R01 done, diminishing returns since Phase 7)
+- Dogfood UI expansion (research tool, not product)
+- Fundraise deck polish (the deck IS the Bridge traction)
+- Anything that isn't "external humans touching your tech"
+
+---
+
+## THE SINGLE MOST IMPORTANT INSIGHT
+
+Both models converge on this from different angles:
+
+> **Your thesis ("taste is private") and your growth need ("external validation") are not contradictory — if you share the MUSIC, not the LISTENER.**
+
+The Bridge widget threads this needle perfectly. It's a shareable artifact about the relationship between two songs, not about the person listening. Curators share it because it makes their writing more vivid. Readers experience it as discovery, not comparison.
+
+This resolves the tension paralyzing product decisions: you CAN have a shareable, viral-capable artifact while keeping taste completely private. The Bridge is that artifact.
+
+Ship it.

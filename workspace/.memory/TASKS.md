@@ -12,7 +12,7 @@
 
 - [x] **Bridge MVP** — DONE. `api/bridge.py` on :8881. Search, create, permalink, 12s crossfade, OG meta, analytics. Commit 2ec2e00.
 - [x] **Quality filter** — DONE. DeepPref cosine scoring. Range: -97% (anti-correlated) to 98% (highly compatible).
-- [x] **Curator seeding** — DONE. 10 bridges created across genres. 10 Substack curators researched and matched. Outreach plan: `docs/curator-seeding-plan.md`. Commit 0b461fa. **BLOCKED on public URL** (ngrok/deploy) + Idam's "send it" for outbound emails.
+- [x] **Curator seeding** — DONE. 10 bridges created across genres. 10 Substack curators researched and matched. Outreach plan: `docs/curator-seeding-plan.md`. Commit 0b461fa. **BLOCKED on Idam's "send it"** for outbound emails. Public URL available via Cloudflare tunnel.
 - [ ] **Hedge: arxiv preprint** — SKIPPED for now. Preprint stronger with 14-day engagement data from curator seeding. Revisit after kill window.
 - [ ] **Hedge: consulting outreach** — SKIPPED. Email-gated + premature before primary bet has 14 days to prove itself.
 
@@ -161,7 +161,7 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 ### Live Services
 - **Bridge API**: DOWN since Apr 9. NOT BLOCKING — research uses direct DB queries, not the API.
 - **Ingestors**: ALL DEAD since Apr 9. NOT BLOCKING — 112.5M transitions already in DB is sufficient for current research. Restart when we need fresh data.
-- **ngrok dashboard**: FREE PLAN BANDWIDTH EXHAUSTED (Apr 11). Resets May 1, 2026. Dashboard and external tunnel endpoints blocked until then. Consider upgrading or using cloudflared tunnel as alternative.
+- **Kai dashboard tunnel**: Cloudflare named tunnel `kai-dashboard` → https://kai.kyma.stream (LaunchAgent, auto-starts on boot). Replaced ngrok (killed Apr 11).
 
 ### Data (SSD)
 - Spotify: 256M tracks (33GB metadata), 256M audio features (39GB), 800K MERT (6.1GB)
