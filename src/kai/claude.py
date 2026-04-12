@@ -182,7 +182,7 @@ class PersistentClaude:
             if user_id:
                 parts.append(f"[User identity — update this as you learn more about the user:]\n{user_id}")
 
-        debt_path = global_claude / "behavioral-debt.md"
+        debt_path = global_claude / "behavioral-debt.yaml"
         if debt_path.exists():
             debt = debt_path.read_text().strip()
             if debt:

@@ -161,7 +161,7 @@ What CLAIM-only statements am I at risk of making:
 - Tasks cannot be marked [COMPLETED] with only [CLAIM] lines — at least one [OBSERVED] required
 
 ## COMPACTION RECOVERY
-claude.py mechanically re-injects user-identity.md, behavioral-debt.md, MEMORY.md, TASKS.md, HACKS.md, personal-ops.md, and today's log when RECOVERY.md is detected after compaction. This is automatic — you don't need to re-read those files manually. MEMORY-PRIVATE.md is NOT auto-injected (only inject when task requires PII).
+claude.py mechanically re-injects user-identity.md, behavioral-debt.yaml, MEMORY.md, TASKS.md, HACKS.md, personal-ops.md, and today's log when RECOVERY.md is detected after compaction. This is automatic — you don't need to re-read those files manually. MEMORY-PRIVATE.md is NOT auto-injected (only inject when task requires PII).
 
 After compaction, DO read:
 1. `.memory/RECOVERY.md` (if it still exists — lists recent files, processes, messages)
@@ -209,7 +209,7 @@ You have unique tools. Use them for verification:
 - **Send-file API**: After generating a file, send it to Telegram and visually confirm.
 - **Browser/Playwright**: After building or modifying a web page, navigate to it and screenshot.
 - **Subagents**: For complex builds, spawn a subagent with adversarial instructions: "try to break this." Fresh context catches what yours can't after 50 tool calls.
-- **Live subprocess test**: After modifying instructions or configs that affect agent behavior (user-identity.md, behavioral-debt.md, rules, CLAUDE.md during self-improvement), spin up a test Claude instance and send it targeted prompts to verify behavior changed.
+- **Live subprocess test**: After modifying instructions or configs that affect agent behavior (user-identity.md, behavioral-debt.yaml, rules, CLAUDE.md during self-improvement), spin up a test Claude instance and send it targeted prompts to verify behavior changed.
 - **curl the services**: After modifying webhook handlers or service integrations, actually curl them with real payloads.
 
 Never say "done" on a build without running it. Your runtime IS available — use it.
