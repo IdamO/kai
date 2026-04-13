@@ -311,6 +311,15 @@ When user names a SPECIFIC source or method, use THAT — don't substitute your 
 
 **Napkin math before GPU launches (4+ incidents)**
 Before launching ANY GPU/Modal job: calculate memory, wall time, cost, verify arg sizes (<2GB Modal), add checkpointing for jobs >30min. Write estimates to daily log BEFORE launching.
+**Proactive status reporting (16+ corrections)**
+After completing ANY task: (1) Update TASKS.md (mark complete, move to "Recently Completed"), (2) Write [COMPLETED] to daily log with results, (3) If task was from user request or list, proactively report completion—don't wait to be asked "did we/did you". User asking "status on X" = you failed to make completion visible in persistent artifacts.
+
+**Consultation prompt depth (21+ corrections)**
+Before ANY llm-judge consultation: (1) Read ALL relevant files (experiments/, consultations/, TASKS.md, daily logs), (2) Extract specific technical details (architectures, metrics, findings, dead ends), (3) Frame at expert practitioner level with full context + specific constraints + multiple sub-questions, (4) 1000+ word prompts for strategic decisions. Test: "Would this prompt make sense to someone who hasn't been in our conversations?" If uncertain about depth, show draft to user first.
+
+**Repository pickupability (10+ corrections)**
+After ANY experiment or model work: Update README.md or TASKS.md with (1) what was built, (2) what works/doesn't, (3) where it lives, (4) what's next. Test every update: "Could a blank-slate agent read this file and know exactly what to do?" Never assume "obvious from git history." Experiment results must link to code. Model inventory must be complete and current.
+
 
 ## WORKSPACE FILE INDEX
 > Discoverable files in this workspace. Check these before asking or searching.

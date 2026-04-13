@@ -2,37 +2,32 @@
 
 ## IMMEDIATE - Account Migrations (2026-04-12)
 
-### GitHub Account/Org Fix
-**Status:** INCOMPLETE - account created wrong
-**Issue:** Account username is "kyma-computer" (should be personal idam@kyma.stream account)
-**Required:**
-1. Change GitHub username from "kyma-computer" to personal work handle
-2. Create GitHub organization "kyma-computer" for team
-3. Transfer kyma-landing repo to org
-4. Document pattern for future employees (personal accounts invited to org)
+### GitHub ✅ COMPLETE
+**Status:** DONE (2026-04-13)
+**Org:** kymacomputer (https://github.com/kymacomputer)
+**Repos transferred:** kyma-production, kyma-engine
+**Local remotes:** Updated in both repos
+**Commits:** Pushed to new org
+
+### PostHog ✅ COMPLETE  
+**Status:** DONE (2026-04-13)
+**Org:** Kyma (Project ID: 304123, US Cloud)
+**Members:** 
+- idam@kyma.stream → Owner
+- emmanuel.obiahu@gmail.com → Owner (can be demoted if desired)
+**Token:** phc_wX1q6eY6I8N04NpOJLgZzOFoMwXBhRDx07SrMthnuaj
+**Config:** web/.env.local and web/.env.vercel.production updated
+**Commits:** c19b603, 2d588da, bd2c508 (redeploy trigger)
+**401 fix:** Project token corrected
+**No old org to delete:** Business email logged in via invitation
 
 ### Supabase Database Import
-**Status:** BLOCKED - need to run import
+**Status:** BLOCKED - awaiting user password reset
 **What:** 900MB pg_dump from personal → business Supabase project
-**Password:** idamssup4base
-**Required:**
-1. Verify connection string in backend/.env
-2. Run pg_restore on business project
-3. Test backend connection
-4. Update kyma-landing to use new database
-
-### PostHog Runtime Fix
-**Status:** BLOCKED - 401 ERRORS PERSIST
-**Issue:** Script loads, key correct (phc_xVUjRFSpQhg9oQj5Jn7Yg2kKmtDa9kxTUfhNyfT34GZo), but API returns 401 "invalid or expired"
-**Completed:** 
-- Verified key in Vercel env vars matches PostHog project
-- Enabled autocapture for web in PostHog dashboard (was OFF)
-- Opened kyma.stream in browser - window.posthog still undefined, 401 errors persist
-**Current investigation:**
-- PostHog account requires re-authentication to access org settings
-- May indicate account-level verification issue causing 401s
-- Possible solutions: re-authenticate account, regenerate API key, create fresh project
-**Next:** Re-authenticate PostHog account or escalate to Idam for account verification
+**New project:** qtabexfrgdtbztchdtnj
+**Data ready:** supabase-migration-data/old_db_data.sql
+**Next step:** User resets password at https://supabase.com/dashboard/project/qtabexfrgdtbztchdtnj/settings/database
+**Then:** Run ./supabase-migration-data/import-to-new-db.sh
 
 ### Cancel Personal Subscriptions
 **Status:** PENDING - verify migrations first
