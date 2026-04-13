@@ -1,5 +1,30 @@
 # Active Tasks
 
+## 🚨 URGENT DEADLINES — April 15, 2026 (2 DAYS)
+
+### Tax Filing + Payment
+**Status:** Return signed, installment plan NOT set up
+**Amount:** $91,647 ($88K federal + $3.5K CA)
+**Calendar:** 2026-04-15 09:00-10:00 AM PT (event created)
+**Action required TODAY:**
+  1. Call IRS 800-829-4933 for long-term installment plan (>K requires phone)
+     - Have ready: EIN 41-5195123, Name: IDAM Emmanuel Obiahu
+     - Expected: monthly payment plan, interest + penalties apply
+  2. OR: Short-term 180-day plan at irs.gov/opa (~$15K/month, $0 fee)
+**Blocker:** None - both options available
+**Notes:** Same day as Verra consultation (1 PM PT)
+
+### Verra 93A Consultation - Clifford Law
+**Status:** Scheduled
+**When:** 2026-04-15 13:00-14:00 PM PT (event created)
+**Zoom:** 843 2538 8506 / 915998
+**Brief:** files/verra-93a-litigation-brief-v5.md
+**Amount at stake:** $15K-$75K range
+**Reminder:** Job #198 fires 12:45 PM PT
+**Notes:** Same day as tax deadline (morning)
+
+
+
 ## IMMEDIATE - Account Migrations (2026-04-12)
 
 ### GitHub ✅ COMPLETE
@@ -21,13 +46,16 @@
 **401 fix:** Project token corrected
 **No old org to delete:** Business email logged in via invitation
 
-### Supabase Database Import
-**Status:** BLOCKED - awaiting user password reset
-**What:** 900MB pg_dump from personal → business Supabase project
-**New project:** qtabexfrgdtbztchdtnj
-**Data ready:** supabase-migration-data/old_db_data.sql
-**Next step:** User resets password at https://supabase.com/dashboard/project/qtabexfrgdtbztchdtnj/settings/database
-**Then:** Run ./supabase-migration-data/import-to-new-db.sh
+### Supabase Ownership Transfer
+**Status:** IN PROGRESS - invitation sent (Step 1/3 complete)
+**What:** Add idam@kyma.stream to existing Supabase project, transfer ownership from emmanuel.obiahu@gmail.com
+**Why:** Preserves all data/config without 900MB import. Simpler than dump+restore.
+**Progress:**
+  ✅ Step 1: Invitation sent to idam@kyma.stream (Developer role) - DONE 2026-04-13 15:00
+  ⏳ Step 2: Accept invitation (awaiting email arrival)
+  ⏳ Step 3: Transfer ownership from emmanuel.obiahu@gmail.com
+**Screenshot:** .playwright-mcp/supabase-invitation-sent.png
+**Next:** Monitor idam@kyma.stream for invitation email, accept, then transfer ownership
 
 ### Cancel Personal Subscriptions
 **Status:** PENDING - verify migrations first
