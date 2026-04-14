@@ -24,6 +24,82 @@
 **Notes:** Same day as tax deadline (morning)
 
 
+## 🎯 a16z SPEEDRUN SR007 — 30-Day Pre-Application Blitz (May 17 Deadline)
+
+### Program Overview
+**Accelerator:** a16z Speedrun SR007
+**Deadline:** Likely May 17, 2026 (33 days)
+**Investment:** $1M ($500K upfront @ 10%, $500K conditional on next round within 18mo)
+**Duration:** 12 weeks in SF starting ~July 2026
+**Acceptance:** <1% (70/19,000 in SR006)
+**Prep package:** files/a16z-speedrun-prep-package.md
+
+### Selection Criteria (Ranked)
+1. **TRACTION/VELOCITY** (strongest signal) — shipping fast, learning, iterating
+2. **TEAM** — complementary skills, domain expertise, outlier signals
+3. **FOUNDER SIGNALS** — deep market understanding, non-obvious insights
+
+### Kyma Fit: STRONG YES
+**Strengths:**
+- ✅ Market wedge (Suno blocked Apr 7, curator economy rising)
+- ✅ Technical depth (DeepPref production, 112.5M dataset, stem ablation finding)
+- ✅ Unfair advantage (music curation preference = unpublished research domain)
+- ✅ Team (Idam ex-Roblox/Pinterest/Google, Apolline [FILL])
+
+**Critical Gap:**
+- ❌ **TRACTION** — ZERO external users. Need curator adoption NOW.
+
+### Week 1: Curator Outreach LAUNCH (Apr 14-20) — STARTING TODAY
+**Status:** NOT STARTED
+**Deadline:** Apr 20 (target: 3-5 curator responses)
+**Actions:**
+- [ ] Update curator email templates with: (1) Suno licensing angle, (2) 2026 curator economy trends, (3) Bridge demo link
+- [ ] Send 10 curator emails (targets in docs/curator-seeding-plan.md)
+- [ ] Apolline sends ALL emails (her name, her voice) — coordinate with her
+- [ ] Create public changelog (changelog.kyma.stream or Substack)
+- [ ] Update LinkedIn profiles (both founders) — music curation expertise, Bridge launch
+- [ ] Target metric: 3-5 curator responses by Apr 20
+
+### Week 2: First Users (Apr 21-27)
+**Status:** PENDING Week 1
+**Deadline:** Apr 27 (target: 3+ curators using Bridge)
+**Actions:**
+- [ ] Bridge demo link live + onboarding flow
+- [ ] Onboarding calls with responding curators (Apolline leads)
+- [ ] Usage tracking: bridges created, embed clicks, curator feedback
+- [ ] Target metric: 10+ bridges created by curators (not us)
+
+### Week 3: Traction Proof (Apr 28-May 4)
+**Status:** PENDING Week 2
+**Deadline:** May 4 (solidify traction story)
+**Actions:**
+- [ ] Viral coefficient data (embed click-through rate)
+- [ ] Retention stats (curator re-use rate)
+- [ ] Curator testimonials (3+ quotes for deck)
+- [ ] GitHub velocity (1 feature/week shipped publicly)
+- [ ] Public changelog updated weekly
+
+### Week 4: Submit Application (May 5-11)
+**Status:** PENDING Week 3
+**Deadline:** May 11 (submit before May 17 deadline)
+**Actions:**
+- [ ] Complete 5-10 slide deck (structure in prep package)
+- [ ] Traction slide: real numbers (curators, bridges, clicks, viral coefficient)
+- [ ] Written application (company description, founder backgrounds)
+- [ ] Video pitch (if required)
+- [ ] Submit via a16z portal
+
+### Application Materials (Templates in Prep Package)
+- Deck structure (slides 1-10 with exact content)
+- Written application templates
+- Competitive Q&A prep
+- Red flags to avoid (from official a16z guidance)
+
+### Next Actions (IMMEDIATE)
+1. **Coordinate with Apolline** — Week 1 curator outreach, email templates, public changelog strategy
+2. **Create calendar events** — Week 1-4 milestones, May 17 deadline
+3. **Schedule reminders** — Weekly check-ins, application submission reminder
+
 
 ## IMMEDIATE - Account Migrations (2026-04-12)
 
@@ -69,6 +145,15 @@
 - Update .env files to idam@kyma.stream
 - Update code references
 - Clean documentation
+
+### MongoDB for Startups
+**Status:** READY TO ACTIVATE - code received, browser window opened
+**Credit:** $5,000 Atlas credit
+**Code:** ACCELERATOR-PARTNER-5000-F8LXYC (valid through program term)
+**Action:** (1) Go to cloud.mongodb.com/v2, (2) Login/create account with idam@kyma.stream, (3) Navigate to Billing, (4) Click "Apply Code", (5) Enter activation code
+**URL:** Browser window opened at cloud.mongodb.com
+**Email:** Acceptance email received Apr 13, 9:47 AM
+**Next:** Complete activation, add to reference_startup_credits.md as COMPLETE
 
 ### Notion Service Table
 **Status:** NOT STARTED
