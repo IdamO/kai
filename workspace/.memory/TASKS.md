@@ -1,6 +1,6 @@
 # Active Tasks
 
-## 🚨 URGENT DEADLINES — April 15, 2026 (2 DAYS)
+## 🚨 URGENT DEADLINES — April 15, 2026 (TODAY)
 
 ### Tax Filing + Payment
 **Status:** Return signed, installment plan NOT set up
@@ -49,8 +49,8 @@
 **Critical Gap:**
 - ❌ **TRACTION** — ZERO external users. Need curator adoption NOW.
 
-### Week 1: Curator Outreach LAUNCH (Apr 14-20) — STARTING TODAY
-**Status:** NOT STARTED
+### Week 1: Curator Outreach LAUNCH (Apr 14-20)
+**Status:** ON HOLD — Idam not applying (still figuring out product/vision per Apr 14 note)
 **Deadline:** Apr 20 (target: 3-5 curator responses)
 **Actions:**
 - [ ] Update curator email templates with: (1) Suno licensing angle, (2) 2026 curator economy trends, (3) Bridge demo link
@@ -166,6 +166,7 @@
 **Decision:** Dual-model consultation (Opus 4.6 + Sonnet 4.5, 2026-04-11) converged: ship Bridge.
 **What:** Curators paste 2 Spotify track URLs → get permalink with 12s crossfade player + OG cards.
 **Why:** Share the MUSIC, not the LISTENER. Bath thesis compatible. Curators = distribution (Burt's structural holes). SoundCloud embed playbook.
+**Strategic positioning (updated Apr 15, 2026):** Spotify Prompted Playlists (Jan 2026) validated agentic discovery market but targeted personal consumption. Bridge deliberately positions AWAY from this — curator distribution vs personal discovery. Bridge = open sharing, Spotify = closed personalization. This differentiation is now MORE valuable, not less.
 **Kill criterion:** 3+ unprompted curator re-uses in 14 days.
 **Code:** `kyma-engine/api/bridge.py` on :8881.
 **Synthesis:** `files/consultation-synthesis-2026-04-11.md`
