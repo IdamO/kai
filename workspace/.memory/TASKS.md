@@ -1,5 +1,51 @@
 # Active Tasks
 
+## 🧠 KYMA OS — v3 COLLAPSED TO "Obsidian for Music" (2026-04-17)
+
+**Decision**: v3's 7 candidate surfaces (Dérive, Lineage, Gift, Bridge, Cross-Modal, 8.6s Radio, Loop Navigator) collapse into ONE primary product + Bridge as growth tactic. The cofounders' Apr 16 brainstorm explicitly named it: **"Obsidian for music"**. The pattern-match into 7 variations was my failure; their vocabulary supports one thing.
+
+**Deliverables shipped today (2026-04-17)**:
+- `files/research/kyma-deep-brain-analysis-2026-04-17.md` (49 KB, 7642 words) + PDF (570 KB) — all 5 cofounder voice-memo transcripts ingested, 10 convergent primitives, 11 rejection categories, 7 unresolved tensions, 10 open design questions
+- `files/research/kyma-obsidian-for-music-product-pdf-2026-04-17.md` (38 KB, 5465 words) + PDF (430 KB) — primary product spec with product + eng + ML + AI + legal + GTM + a16z SR007 deck skeleton
+- 5 voice-memo transcripts saved to `files/transcript-*.md` AND `notion-kyma-space-2/YYYY-MM-DD-*.md` with date prefixes for brain atomizer chronology
+- 3 competitive/technical research docs: `s1-derive-*.md` (Spotify SongDNA, Gen Z iPod data), `s2-lineage-graph-*.md` (AllMusic/WhoSampled/HDSR), `s3-s4-gift-bridge-*.md` (Hook $10M, Substack music ecosystem, licensing)
+- All research shared to idam self-email (gmail message_id 19d9c762d3aec5c8) at 10:21 PT
+
+**Brain atomize state**: 205 notion atoms after re-atomize with all 5 transcripts included. qmd collection `notion` in sync (90 chunks embedded in this run).
+
+**What's DECIDED (from product PDF §10)**:
+- Kyma is Obsidian for music (not DJ tool, not generator, not Taste DNA)
+- Local-first / user's own library / zero cloud audio storage
+- Session-bounded ritual (15-30 min) with persistent "animal track" artifact
+- LLM as narrator (closed-weight Claude Sonnet 4.5 under the hood)
+- Bridge widget demoted to growth tactic, not product (already shipped Apr 11)
+- No taste-signaling / no Wrapped-equivalent user-facing surface
+- ICP: taste-rich-skill-poor (iPod revival subculture as on-ramp)
+- Pricing: $4.99/mo Pro tier
+
+**What's FLEX (needs Idam)**:
+- Exact session length (15 min default, can A/B 10/15/20)
+- Share surface for forkable sessions (Phase 2 design)
+- Desktop app timeline (Phase 2 vs Phase 3)
+- Pricing exact boundaries (4.99 default, can test 3.99-7.99)
+- Agent-swarm protocol design (Nostr-like? bespoke? Phase 3)
+
+**Next actions I can do without unblock**:
+- [ ] Draft llm-judge consult prompt for Cognitive Amplifier stress-test of Obsidian-for-music
+- [ ] Write arxiv preprint on DeepPref + stem-ablation (~4hr, Sonnet Apr 11 suggestion — produces research moat credibility for a16z speedrun deck)
+- [ ] a16z SR007 deck drafting (May 17 deadline, 30 days out)
+- [ ] First-session onboarding UX mockup (Obsidian-for-music MVP)
+
+**Blocked on Idam**:
+- Confirm Obsidian-for-music collapse thesis (read the brain analysis + product PDF)
+- Authorize Bridge curator outreach ("send it" for 10 prepped Substack emails)
+- Answer 10 open questions from brain analysis §8
+- Pricing $4.99 tier approval
+
+**Supersedes**: prior "Kyma OS pipeline" tasks + v3 decomposition doc. v3 is archived at `files/research/kyma-os-02-v3-decomposition-transcripts-integrated-2026-04-17.md` for reference.
+
+---
+
 ## 🚨 URGENT DEADLINES — April 15, 2026 (TODAY)
 
 ### Tax Filing + Payment
@@ -33,7 +79,7 @@
 
 - [x] **Fix CONDITION_NOT_MET Telegram spam — cron.py universal silence** — DONE 2026-04-17 07:15 PT, commit 6918da31. Problem: Job 103 Proactive Intel gate-failures (CONDITION_NOT_MET) fired ~4 times overnight and each delivered the literal string "[Job: Proactive Intel]\nCONDITION_NOT_MET" to Idam's Telegram because cron.py's CONDITION_NOT_MET branch was gated on `auto_remove=True` (recurring interval jobs are auto_remove=False). One-token fix: removed `auto_remove and` from the elif guard → CONDITION_NOT_MET is now universal silence signal, with `notify_on_check=True` as the existing opt-in for delivery. Job 214 scheduled to fire at 14:16:22Z (~07:16 PT) to kickstart the bot and load the patched cron.py. Idam mid-stream complaint: "Still getting CONDITIONNOTMET" confirmed root cause.
 
-- [ ] **Investigate HTTP/proxy header-injection to force `thinking.display=summarized` on Opus 4.7** — Claude Code CLI does not expose the `thinking` body param to users, but the Anthropic API accepts `thinking: {"type": "adaptive", "display": "summarized"}`. Paths to investigate: (1) run `claude` subprocess behind a local mitmproxy that rewrites the outgoing `/v1/messages` JSON body to inject the display param — should work because the CLI hits `api.anthropic.com` over HTTPS and we control the trust store; (2) check if `--betas` flag accepts an undocumented cleartext-thinking value by scanning the CLI binary strings (`strings $(which claude) | grep -i thinking`); (3) check if Claude Code has a plugin or hook point that can mutate outgoing requests. Dead end if none: wait for #31143 fix, keep the `KAI_CLAUDE_MODEL` env flag in `claude.py:406` as a reversible emergency escape hatch but do NOT set it.
+- [x] **Investigate HTTP/proxy header-injection to force `thinking.display=summarized` on Opus 4.7** — SHIPPED 2026-04-17 08:15 PT. Findings: `files/research/2026-04-17-opus-4-7-thinking-display-paths.md`. Task premise CONFIRMED (Anthropic docs: Opus 4.7 defaults `display: "omitted"`; must explicitly set `"summarized"`). Path 2 (hidden flag): DEAD — zero `display` keys in CLI binary, `--betas` is for HTTP headers not body. Path 3 (hook): DEAD — only `PreToolUse/PostToolUse/PreCompact` hooks exist, no request-mutation point. Path 1 (proxy): VIABLE — CLI natively honors `CLAUDE_CODE_PROXY_URL` + `NODE_EXTRA_CA_CERTS` (but `ANTHROPIC_BASE_URL` has `api.anthropic.com` allowlist — not usable). Path 4 (direct API): skipped — docs are definitive. **Secondary blocker:** v2.1.69+ regression (#30958 OPEN) discards summaries client-side; may also affect stream-json path Kai uses. Recommendation: ~1hr mitmproxy POC if Idam wants readable thinking now, else keep `KAI_CLAUDE_MODEL=claude-opus-4-6` escape hatch dormant (claude.py:413) until Anthropic ships fix. — Claude Code CLI does not expose the `thinking` body param to users, but the Anthropic API accepts `thinking: {"type": "adaptive", "display": "summarized"}`. Paths to investigate: (1) run `claude` subprocess behind a local mitmproxy that rewrites the outgoing `/v1/messages` JSON body to inject the display param — should work because the CLI hits `api.anthropic.com` over HTTPS and we control the trust store; (2) check if `--betas` flag accepts an undocumented cleartext-thinking value by scanning the CLI binary strings (`strings $(which claude) | grep -i thinking`); (3) check if Claude Code has a plugin or hook point that can mutate outgoing requests. Dead end if none: wait for #31143 fix, keep the `KAI_CLAUDE_MODEL` env flag in `claude.py:406` as a reversible emergency escape hatch but do NOT set it.
 
 ## IMMEDIATE - Account Migrations (2026-04-12)
 
@@ -204,12 +250,13 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 
 ### Kai Brain Infrastructure (updated 2026-04-17 22:30 PDT)
 Ranks 1-3 shipped + 4 consult-driven fixes (commit 964ebe9e). 634 atoms, 617 supersede edges. top_of_mind ranked-injection of 80 primary + 27 dependencies. Synthesis: `files/consultations/2026-04-17-brain-memory-followup/synthesis.md`.
-- [ ] **Positional-attention control experiment** [Claimed by: Kai at 2026-04-17 22:30 PDT] — Prepend truth-routing trailer to OLD flat stack, re-run `exp_r07_status` + `state_freshness`, compare to NEW. Proof: if OLD_CONTROL matches NEW, 2 of 3 "wins" are positional not architectural. Cost ~$1. Log: `/tmp/brain_ab_results/`. Baseline: `files/consultations/2026-04-16-brain-memory/ab-test/raw-results.json`.
-- [ ] **Unified 15-query battery** (blocked on control result) — Merge Opus's 12 + Sonnet's 15, stratified temporal / cross-atom / operator-workload / proactive-intel / long-horizon-drift + blind-pair grading.
-- [ ] **Response-level atom-reference logging** — Capture cited atoms per response; Spearman-correlate with activation scores (≥0.4 bar). Hook into `claude.py` response pipeline.
+- [x] **Positional-attention control experiment** — SHIPPED 2026-04-17 22:40 PT. OLD_CONTROL (trailer + old flat stack) reproduced 2/3 wins: `exp_r07_status` positional win confirmed, `state_freshness` duplicated by metadata/log annotation, `focus_now` remained the only genuine architectural claim. Verdict: Sonnet's "wait" strengthened; only cross-atom synthesis clearly earns complexity. Artifacts: `files/consultations/2026-04-17-brain-memory-followup/control_experiment.py`, `files/consultations/2026-04-17-brain-memory-followup/control_experiment_result.md`, `/tmp/brain_ab_results/control-20260417-052051.json`.
+- [x] **Unified 15-query battery + blind judges** — SHIPPED 2026-04-17 23:20 PT. Battery v1: 15 queries × 3 conditions (45 calls) plus v2 adversarial/abstention augment. Two independent blind judge writeups converged: new_brain 25 / old_base 19 / old_trailer 7 / ties 9, strongest on temporal-span + long-horizon drift, decisive on adversarial reversal-chain. Consolidated findings: `files/consultations/2026-04-17-brain-memory-followup/FINDINGS.md`. Raw: `/tmp/brain_ab_results/unified-battery-20260417-054129.json`, `/tmp/brain_ab_results/battery-v2-aug-20260417-054618.json`.
+- [ ] **Activation-quality calibration** — `sources_cited` / tool-chain instrumentation shipped inside battery v2, but Spearman correlation of cited-atoms vs activation rank is still open. Daily log explicitly deferred this as a 1-hour next session item after the anti-cherry-pick correction.
 - [ ] **Atomizer noise fix** — entity-overlap heuristic produces false-positive supersede pairs. Require STRONG topic token (MODEL-/EXP-R-/file-scoped heading-match) instead of generic 2-entity overlap.
-- [x] **Ingest Kyma Space 2.0 Notion workspace** — SHIPPED 2026-04-17 07:45 PT. 128 pages + 20 DB manifests fetched via Notion API → `/Users/idamo/kai/notion-kyma-space-2/`. Content-filtered to Kyma/work-only: kept 13 files (YC app drafts, Kyma investor research, pivot thesis, DJ discovery MVP plan, intro-call meeting prep, Active Projects status, timeline/deadlines, financial astrology 2026, Zach Bia meeting notes). Archived 135 personal/template/noise files to `notion-kyma-space-2-archive-personal/` (2021 bookshelf/movies/habit-tracker DBs, 2024-02-02 Ultimate Productivity System template, Colombia visa, Galima2 workspace, idamo.main personal dashboard). qmd collection `notion` registered, 13 docs indexed, 272 → filtered chunks embedded. atomize.py patched: added `notion` scope + glob walker, extended `_log_file_date` regex to parse `/notion-kyma-space-2/YYYY-MM-DD-` filenames → all 32 notion atoms now have proper chronology dates (2025-11-12, 2026-01-07, 2026-01-19, 2026-02-14). Brain total: 694 atoms (+60 from this ingest + today's log growth), 494 supersede edges. Verified via `qmd search "DJ discovery MVP"` — returns DJ discovery MVP plan notion file at 39% score. Artifacts: `scripts/notion_ingest.py`, `/Users/idamo/kai/notion-kyma-space-2/`, `.memory/logs/2026-04-17.md` (§ 07:18 STARTED, § 07:45 COMPLETED).
-- [ ] **Wire qmd refresh into brain workflow** — `qmd update kai && qmd update kyma && qmd embed` as post-atomize step.
+- [x] **Task Puller job** — SHIPPED 2026-04-17 23:05 PT. Job #212 on 2-hour cadence reads `TASKS.md`, picks one ready non-claimed item, executes with DoD + [OBSERVED] artifacts, commits/pushes, then marks completion. Safety rails: quiet-period gate (>=90m since last user msg), strict allowlist, one-task-per-fire, ATTENTION.json write on blocked decisions. Prompt: `.claude/task-puller-prompt.md`.
+- [x] **Ingest Kyma Space 2.0 Notion workspace** — SHIPPED 2026-04-17 07:45 PT, widened 08:05 PT. 128 pages + 20 DB manifests fetched → `/Users/idamo/kai/notion-kyma-space-2/`. Filter rule (per Idam: "everything in Kyma OS, like meeting notes/transcripts, Document hub etc"): keep 2024+, archive pre-2024. Final: 53 files in main dir (YC app drafts, Kyma investor research, pivot thesis, DJ discovery MVP, meeting notes/transcripts, Active Projects, timeline/deadlines, financial astrology 2026, productivity OS templates, teamspace, personal dashboard, visa logistics), 95 archived to `notion-kyma-space-2-archive-personal/` (2021-2023 journals/bookshelf/movies/habit-tracker/Netflix-notes). qmd collection `notion`: 53 docs indexed. atomize.py patched: `notion` scope + glob walker, `_log_file_date` regex extended for `/notion-kyma-space-2/YYYY-MM-DD-` → 82 notion atoms with proper chronology dates. Brain total: ~744 atoms. `qmd search "DJ discovery MVP"` returns the MVP plan at 39% top. Artifacts: `scripts/notion_ingest.py`, `/Users/idamo/kai/notion-kyma-space-2/`, `.memory/logs/2026-04-17.md` (§ 07:18 STARTED, § 07:45 COMPLETED, § 08:05 AMENDMENT).
+- [x] **Wire qmd refresh into brain workflow** — SHIPPED 2026-04-17 07:55 PT. `atomize.py` now runs `qmd update + qmd embed` automatically after writing atoms, keeping atoms / BM25 / vector search aligned. Default ON; skip with `--no-refresh-qmd`. Verified: `--scope notion` returns `[atomize] qmd update: ✓ All collections updated.` + `[atomize] qmd embed: ✓ All content hashes already have embeddings.`. `refresh_qmd()` helper at `src/kai/brain/atomize.py:591` with 300s update timeout + 900s embed timeout + graceful fallback if qmd binary missing.
 
 ### Existing Infrastructure (KEPT — feeds Taste Oracle)
 - FAISS 254.8M × 12d index
