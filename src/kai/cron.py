@@ -312,8 +312,10 @@ async def _job_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
             job.schedule_removal()
             log.info("Job %d condition met, deactivated", job_id)
 
-        elif auto_remove and first_line.startswith(_CONDITION_NOT_MET_PREFIX.upper()):
-            # Condition not met — notify user if notify_on_check is enabled, otherwise silent
+        elif first_line.startswith(_CONDITION_NOT_MET_PREFIX.upper()):
+            # CONDITION_NOT_MET is a universal silence signal for any job type.
+            # auto_remove jobs keep checking; recurring jobs wait for next scheduled fire.
+            # Delivery only happens when notify_on_check=True is opted in on the job.
             notify_on_check = data.get("notify_on_check", False)
             if notify_on_check:
                 # Extract and send the message after the marker (same logic as CONDITION_MET).
