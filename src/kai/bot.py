@@ -1587,26 +1587,64 @@ async def _maybe_pickup_task(claude: PersistentClaude, chat_id: int) -> None:
             return
 
         tasks_text = tasks_path.read_text()
-        has_work = False
-        for marker in ("## In Progress", "## Up Next", "## Dynamic Tasks"):
-            idx = tasks_text.find(marker)
-            if idx < 0:
+
+        # Updated 2026-04-17: old logic looked for `## In Progress` / `## Up Next` / `## Dynamic Tasks`
+        # sections that no longer exist in TASKS.md. Replaced with a per-line scan that picks the
+        # first unblocked, unclaimed `- [ ]` item, skipping sections where items require user action
+        # (not Kai work). Enables drain-until-empty via existing post-response hook — no cron needed.
+        import re as _re
+
+        # Section headers where items are NOT autonomously actionable (need user or external)
+        EXCLUDED_SECTION_KEYWORDS = (
+            "needs idam",
+            "waiting on others",
+            "recently resolved",
+            "recently completed",
+            "deadlines (",
+            "do not build",
+            "hedge:",
+        )
+        # Tags that mark a task as non-pickupable
+        BLOCKED_TAGS = ("[BLOCKED", "[Claimed by:", "[STUB", "[NEEDS_DECISION", "[HOLD]", "[Deferred]")
+
+        current_section = ""
+        first_pickable = None
+        for line in tasks_text.splitlines():
+            stripped = line.lstrip()
+            # Track current section on any markdown heading (#, ##, ###, ####)
+            if stripped.startswith("#"):
+                # Extract heading text for exclusion check
+                heading = stripped.lstrip("# ").strip().lower()
+                current_section = heading
                 continue
-            section_end = tasks_text.find("\n## ", idx + 1)
-            section = tasks_text[idx:section_end] if section_end > 0 else tasks_text[idx:]
-            if "- [ ]" in section or "- [~]" in section:
-                has_work = True
-                break
+            # Only pick open checkbox items; `- [~]` is also "in progress, continue"
+            if not (stripped.startswith("- [ ]") or stripped.startswith("- [~]")):
+                continue
+            # Skip items whose current section requires user/external action
+            if any(kw in current_section for kw in EXCLUDED_SECTION_KEYWORDS):
+                continue
+            # Skip items with blocked/claimed tags
+            if any(tag in line for tag in BLOCKED_TAGS):
+                continue
+            first_pickable = line.strip()
+            break
 
-        if not has_work:
+        if not first_pickable:
             return
+        has_work = True  # retained for legacy logs
 
-        log.info("Auto-pickup: found queued tasks, sending continuation prompt")
-        events.push("system", {"session_id": "", "auto_pickup": True})
+        log.info("Auto-pickup: found queued task: %s", first_pickable[:120])
+        events.push("system", {"session_id": "", "auto_pickup": True, "task": first_pickable[:200]})
+        # Point Kai at the SPECIFIC task found, not generic "check TASKS.md"
         continuation = (
-            "[AUTO-CONTINUATION: No pending user messages. You have queued tasks. "
-            "Check TASKS.md and continue working on the highest priority item. "
-            "Update TASKS.md as you progress.]"
+            "[AUTO-CONTINUATION: No pending user messages. The next pickable task in TASKS.md is:\n"
+            f"  {first_pickable[:280]}\n\n"
+            "Work on it end-to-end: claim it with [Claimed by: Kai at <ISO ts>], "
+            "write [STARTED] entry to today's daily log with pre-action contract, execute in your "
+            "allowlist (files/git/research/scripts — no outbound emails, no >$5 spend, no destructive ops), "
+            "verify with DoD, then mark [COMPLETED] in TASKS.md + daily log + commit + push. "
+            "When done, a future auto-continuation will pick up the next item. "
+            "If the task needs Idam input, write to .memory/ATTENTION.json and skip it.]"
         )
 
         # Drain pending messages before auto-pickup send, same as _handle_response
