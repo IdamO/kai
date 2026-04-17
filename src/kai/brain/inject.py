@@ -28,7 +28,12 @@ REFRESH_AFTER_SECONDS = 60 * 60  # 1 hour
 
 
 def _maybe_refresh() -> bool:
-    """Regenerate top_of_mind.json if stale. Return True if refresh succeeded or not needed."""
+    """Regenerate top_of_mind.json if stale. Return True if refresh succeeded or not needed.
+
+    Per Idam 2026-04-17 directive: when the brain refreshes, also kick qmd
+    (semantic search index) so it stays in sync with the memory surfaces the
+    atomizer just rewalked. qmd failure does not block the brain refresh.
+    """
     if os.environ.get("KAI_BRAIN_NO_REFRESH"):
         return True
     needs = False
@@ -53,9 +58,30 @@ def _maybe_refresh() -> bool:
             [sys.executable, "-m", "kai.brain.activate", "--budget", "80"],
             env=env, check=True, capture_output=True, timeout=30,
         )
-        return True
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
         return False
+
+    # qmd refresh — keep semantic index in sync with the atom surfaces.
+    # Runs in background; qmd failure should never block the brain.
+    # Skip if KAI_QMD_NO_REFRESH is set (useful for tests / fast paths).
+    if not os.environ.get("KAI_QMD_NO_REFRESH"):
+        try:
+            # Both update + embed are idempotent; --daemon-style fire-and-forget OK.
+            # Using Popen so brain doesn't wait on qmd's ~15-30s indexing work.
+            subprocess.Popen(
+                ["qmd", "update"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            # Defer `qmd embed` by 60s so it starts after `qmd update` writes its SQLite
+            # updates. Done via a detached shell to avoid a foreground sleep.
+            subprocess.Popen(
+                ["sh", "-c", "sleep 60 && qmd embed"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        except (FileNotFoundError, PermissionError):
+            pass  # qmd not installed or not executable — brain still works
+
+    return True
 
 
 def _age_label(ttl: str | None) -> str:
