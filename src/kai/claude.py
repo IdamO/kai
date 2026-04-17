@@ -115,8 +115,9 @@ class PersistentClaude:
 
     # Pin short model names to explicit model IDs so we control which version runs.
     # "sonnet" -> Sonnet 4.5 (not 4.6) per Idam's preference (2026-04-10).
+    # "opus" -> Opus 4.7 with 1M context ([1m] suffix) per Idam (2026-04-16).
     _MODEL_IDS: dict[str, str] = {
-        "opus": "claude-opus-4-6",
+        "opus": "claude-opus-4-7[1m]",
         "sonnet": "claude-sonnet-4-5-20250929",
         "haiku": "claude-haiku-4-5-20251001",
     }
@@ -163,11 +164,33 @@ class PersistentClaude:
         Returns a list of context blocks (MEMORY.md, TASKS.md, HACKS.md, etc.)
         that get prepended to a prompt. Called on fresh sessions and after
         compaction recovery — both need the same full context set.
+
+        First item (when available) is the KAI BRAIN top-of-mind block from
+        ~/.claude/shared/atoms/top_of_mind.json — a salience-ranked, decay-
+        weighted view of the memory stack that surfaces identity + current
+        decisions + high-salience insights, and SUPPRESSES superseded
+        zombies (e.g., stale deadlines that have been marked ON HOLD). See
+        src/kai/brain/ and files/consultations/2026-04-16-brain-memory/
+        for the architecture + synthesis. Placing this first exploits
+        U-shaped transformer attention — items in the first ~8K tokens
+        are read more deeply than items in the middle of a 1M-token
+        injection.
         """
         from datetime import date
 
         parts: list[str] = []
         global_claude = Path.home() / ".claude"
+
+        # ── Brain layer: top-of-mind (salience-ranked, decay-weighted) ──
+        try:
+            from kai.brain.inject import build_injection_block
+            brain_block = build_injection_block(max_atoms=40)
+            if brain_block:
+                parts.append(brain_block)
+        except Exception as _brain_err:
+            # Brain layer is optional. If top_of_mind.json missing or import fails,
+            # fall back to existing injection stack silently.
+            log.debug("brain injection skipped: %s", _brain_err)
 
         if self.workspace != self.home_workspace:
             identity_path = self.home_workspace / ".claude" / "CLAUDE.md"
@@ -616,7 +639,7 @@ class PersistentClaude:
                         if output:
                             events.push("tool_result", {
                                 "id": item.get("id", ""),
-                                "output": output[:500],
+                                "output": output,
                                 "is_error": item.get("exit_code", 0) != 0,
                             })
 
@@ -944,19 +967,24 @@ class PersistentClaude:
                             elif btype == "tool_result":
                                 events.push("tool_result", {
                                     "id": block.get("tool_use_id", ""),
-                                    "output": str(block.get("content", ""))[:500],
+                                    "output": str(block.get("content", "")),
                                     "is_error": block.get("is_error", False),
                                 })
                             elif btype == "thinking":
-                                events.push("thinking", {
-                                    "thinking": block.get("thinking", block.get("text", "")),
-                                })
+                                # Opus 4.7+ returns empty `thinking` with opaque `signature` —
+                                # extended reasoning is encrypted server-side, not exposed to clients.
+                                # Sonnet 4.5 / Haiku 4.5 still return plaintext.
+                                thought_text = block.get("thinking") or block.get("text") or ""
+                                payload = {"thinking": thought_text}
+                                if not thought_text and block.get("signature"):
+                                    payload["encrypted"] = True
+                                events.push("thinking", payload)
                             else:
                                 events.push(btype or "unknown", block)
                     elif isinstance(msg_data, str):
                         events.push("text", {"text": msg_data})
                     else:
-                        events.push("raw", {"type": etype, "keys": list(event.keys()), "preview": str(event)[:500]})
+                        events.push("raw", {"type": etype, "keys": list(event.keys()), "preview": str(event)})
 
                 elif etype == "user":
                     # A2: Parse user events to extract tool_result content blocks
@@ -969,9 +997,9 @@ class PersistentClaude:
                                     raw_content = block.get("content", "")
                                     if isinstance(raw_content, list):
                                         text_parts = [b.get("text", "") for b in raw_content if isinstance(b, dict)]
-                                        output = "\n".join(text_parts)[:500]
+                                        output = "\n".join(text_parts)
                                     else:
-                                        output = str(raw_content)[:500]
+                                        output = str(raw_content)
                                     events.push("tool_result", {
                                         "id": block.get("tool_use_id", ""),
                                         "output": output,
