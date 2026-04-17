@@ -80,6 +80,7 @@ SCOPES = {
         HOME / "code/kyma-landing/TASKS.md" if (HOME / "code/kyma-landing/TASKS.md").exists() else None,
         HOME / "code/kyma-landing/.memory/TASKS.md" if (HOME / "code/kyma-landing/.memory/TASKS.md").exists() else None,
     ],
+    "notion_glob": HOME / "kai/notion-kyma-space-2",  # glob *.md — Kyma Space 2.0 Notion dump
 }
 
 # --- Atom schema ------------------------------------------------------------
@@ -342,7 +343,13 @@ def _is_strong_topic(entity: str) -> bool:
 
 def _log_file_date(path: str) -> str | None:
     m = re.search(r"/logs/(\d{4}-\d{2}-\d{2})\.md$", path)
-    return m.group(1) if m else None
+    if m:
+        return m.group(1)
+    # Notion dump: /notion-kyma-space-2/YYYY-MM-DD-<slug>-<id8>.md
+    m = re.search(r"/notion-kyma-space-2/(\d{4}-\d{2}-\d{2})-", path)
+    if m:
+        return m.group(1)
+    return None
 
 
 def _atom_chronology_key(a: Atom) -> tuple[str, int]:
@@ -492,8 +499,12 @@ def walk_scope(scope: str) -> list[Path]:
         files.extend([p for p in SCOPES["kyma_engine"] if p and p.exists()])
     elif scope == "kyma_landing":
         files.extend([p for p in SCOPES["kyma_landing"] if p and p.exists()])
+    elif scope == "notion":
+        notion_dir = SCOPES["notion_glob"]
+        if notion_dir.exists():
+            files.extend(sorted(notion_dir.glob("*.md")))
     elif scope == "all":
-        for s in ["workspace", "global", "kyma_engine", "kyma_landing"]:
+        for s in ["workspace", "global", "kyma_engine", "kyma_landing", "notion"]:
             files.extend(walk_scope(s))
     return files
 
@@ -501,7 +512,7 @@ def walk_scope(scope: str) -> list[Path]:
 def atomize_all(scope: str) -> tuple[list[Atom], list[dict], list[dict]]:
     atoms: list[Atom] = []
     if scope == "all":
-        for s in ["workspace", "global", "kyma_engine", "kyma_landing"]:
+        for s in ["workspace", "global", "kyma_engine", "kyma_landing", "notion"]:
             for path in walk_scope(s):
                 atoms.extend(atomize_file(path, s))
     else:
@@ -585,7 +596,7 @@ def cmd_show_atom(atoms: list[Atom], atom_id: str) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scope", default="all", choices=["all", "workspace", "global", "kyma_engine", "kyma_landing"])
+    ap.add_argument("--scope", default="all", choices=["all", "workspace", "global", "kyma_engine", "kyma_landing", "notion"])
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--stats", action="store_true")
     ap.add_argument("--conflicts", action="store_true")
