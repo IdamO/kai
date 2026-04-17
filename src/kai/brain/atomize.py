@@ -594,6 +594,32 @@ def cmd_show_atom(atoms: list[Atom], atom_id: str) -> None:
     print(f"Atom {atom_id} not found", file=sys.stderr)
 
 
+def refresh_qmd() -> None:
+    """Post-atomize step: refresh qmd semantic index + embeddings.
+
+    Brain atomizer reads source files; qmd is separate semantic search over
+    the same files. Running them together keeps atoms, keyword search, and
+    vector search aligned. `qmd update` is idempotent + cheap on unchanged
+    content (hashes match → skip). `qmd embed` only computes vectors for
+    new content hashes.
+    """
+    import subprocess, shutil
+    if not shutil.which("qmd"):
+        print("[atomize] qmd binary not found — skipping qmd refresh", file=sys.stderr)
+        return
+    try:
+        r = subprocess.run(["qmd", "update"], capture_output=True, text=True, timeout=300)
+        summary = (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or [""])[-1]
+        print(f"[atomize] qmd update: rc={r.returncode}  {summary}", file=sys.stderr)
+        r = subprocess.run(["qmd", "embed"], capture_output=True, text=True, timeout=900)
+        summary = (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or [""])[-1]
+        print(f"[atomize] qmd embed:  rc={r.returncode}  {summary}", file=sys.stderr)
+    except subprocess.TimeoutExpired as e:
+        print(f"[atomize] qmd refresh timed out: {e}", file=sys.stderr)
+    except Exception as e:
+        print(f"[atomize] qmd refresh failed: {e}", file=sys.stderr)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--scope", default="all", choices=["all", "workspace", "global", "kyma_engine", "kyma_landing", "notion"])
@@ -601,6 +627,8 @@ def main() -> int:
     ap.add_argument("--stats", action="store_true")
     ap.add_argument("--conflicts", action="store_true")
     ap.add_argument("--show", nargs=2, metavar=("KIND", "ID"))
+    ap.add_argument("--no-refresh-qmd", action="store_true",
+                    help="skip the post-atomize qmd update+embed step (default: refresh)")
     args = ap.parse_args()
 
     atoms, edges, gaps = atomize_all(args.scope)
@@ -620,6 +648,8 @@ def main() -> int:
         print(f"[atomize] scope={args.scope}  atoms={len(atoms)}  edges={len(edges)}  gaps={len(gaps)}", file=sys.stderr)
         if not args.dry_run:
             print(f"[atomize] wrote {ATOM_INDEX}", file=sys.stderr)
+            if not args.no_refresh_qmd:
+                refresh_qmd()
             print(f"[atomize] wrote {SUPERSEDED}", file=sys.stderr)
             print(f"[atomize] wrote {COVERAGE_GAPS}", file=sys.stderr)
 
