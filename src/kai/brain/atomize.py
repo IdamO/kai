@@ -400,20 +400,34 @@ def detect_supersede_edges(atoms: list[Atom]) -> list[dict]:
                     continue
                 candidates.add(prior.atom_id)
 
-        # Path 2: >= 2 entity overlap AND at least one entity appears in prior heading
+        # Path 2: TIGHT entity overlap — require shared entity in BOTH headings
+        # AND same source file (no cross-file false positives).
+        # Tightened 2026-04-17 per control-experiment follow-up: the previous
+        # ≥2-entity + one-in-prior-heading heuristic generated noise like
+        # "HACKS.md Modal entry superseded by HACKS.md ListenBrainz entry"
+        # because generic tokens ("Modal", "Python", "Spotify") appeared across
+        # unrelated entries. Requiring same-file + both-headings-mention prevents
+        # cross-topic false positives while still catching real in-file revisions.
         if not strong_topics:
+            a_heading_lc = a.heading.lower()
             for prior in atoms_sorted:
                 if prior.atom_id == a.atom_id:
                     continue
                 if _atom_chronology_key(prior) >= a_key:
                     continue
+                # Cross-file pairs require a strong topic (Path 1); same-file pairs allowed here.
+                if prior.source_file != a.source_file:
+                    continue
                 overlap = _entity_overlap(a.extracted_entities, prior.extracted_entities)
                 if len(overlap) < 2:
                     continue
-                # One of the shared entities should appear in prior's heading
-                heading_lc = prior.heading.lower()
-                if any(e in heading_lc for e in overlap):
-                    candidates.add(prior.atom_id)
+                prior_heading_lc = prior.heading.lower()
+                # TIGHTER: shared entity must appear in BOTH headings, not just prior's.
+                both_headings = [e for e in overlap
+                                  if e in prior_heading_lc and e in a_heading_lc]
+                if not both_headings:
+                    continue
+                candidates.add(prior.atom_id)
 
         for cand in candidates:
             edges.append({

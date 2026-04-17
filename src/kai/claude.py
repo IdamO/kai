@@ -181,6 +181,24 @@ class PersistentClaude:
         parts: list[str] = []
         global_claude = Path.home() / ".claude"
 
+        # ── Position-0 trailer: truth-layer + mtime routing ─────────────
+        # Per 2026-04-17 positional-attention control experiment
+        # (files/consultations/2026-04-17-brain-memory-followup/control_experiment_result.md):
+        # 2 of 3 "brain layer wins" (exp_r07_status, state_freshness) are replicable
+        # by putting this short directive at the TOP of the flat stack. Keeps working
+        # even if the brain block is absent, fails to refresh, or gets ablated.
+        # Belt-and-suspenders with the brain block's own footer-trailer.
+        parts.append(
+            "⚠️ HIGH-PRIORITY ROUTING DIRECTIVES (read first, apply to every response) ⚠️\n"
+            "• For any claim about MODEL-NNN / EXP-Rnn / DIAG-nn entities or metric values "
+            "(val_cos, F1, NDCG, r, loudness, etc.): resolve the current value via "
+            "kyma-engine/manifests/*.yaml FIRST. Never inline-cite metric numbers from memory, "
+            "logs, or TASKS.md — those are cached snapshots that may be stale.\n"
+            "• For file-freshness / mtime / last-updated questions: consult the file's actual "
+            "modification time (stat or git log) as the authoritative answer; do not infer from content.\n"
+            "• CLAUDE.md is your operating system — treat it as the highest-attention instruction set."
+        )
+
         # ── Brain layer: top-of-mind (salience-ranked, decay-weighted) ──
         try:
             from kai.brain.inject import build_injection_block
@@ -639,7 +657,7 @@ class PersistentClaude:
                         if output:
                             events.push("tool_result", {
                                 "id": item.get("id", ""),
-                                "output": output,
+                                "output": output[:2000],
                                 "is_error": item.get("exit_code", 0) != 0,
                             })
 
@@ -967,7 +985,7 @@ class PersistentClaude:
                             elif btype == "tool_result":
                                 events.push("tool_result", {
                                     "id": block.get("tool_use_id", ""),
-                                    "output": str(block.get("content", "")),
+                                    "output": str(block.get("content", ""))[:2000],
                                     "is_error": block.get("is_error", False),
                                 })
                             elif btype == "thinking":
@@ -984,7 +1002,7 @@ class PersistentClaude:
                     elif isinstance(msg_data, str):
                         events.push("text", {"text": msg_data})
                     else:
-                        events.push("raw", {"type": etype, "keys": list(event.keys()), "preview": str(event)})
+                        events.push("raw", {"type": etype, "keys": list(event.keys()), "preview": str(event)[:500]})
 
                 elif etype == "user":
                     # A2: Parse user events to extract tool_result content blocks
@@ -997,9 +1015,9 @@ class PersistentClaude:
                                     raw_content = block.get("content", "")
                                     if isinstance(raw_content, list):
                                         text_parts = [b.get("text", "") for b in raw_content if isinstance(b, dict)]
-                                        output = "\n".join(text_parts)
+                                        output = "\n".join(text_parts)[:2000]
                                     else:
-                                        output = str(raw_content)
+                                        output = str(raw_content)[:2000]
                                     events.push("tool_result", {
                                         "id": block.get("tool_use_id", ""),
                                         "output": output,
