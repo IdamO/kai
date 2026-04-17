@@ -1342,6 +1342,94 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 @_require_auth
+async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle Telegram AUDIO messages (music/audio files sent as Audio type,
+    e.g. Apple Voice Memos .m4a, MP3s, etc.) — distinct from Telegram's
+    native VOICE messages (OGG Opus) which flow through handle_voice.
+
+    Why this exists: without this handler, files.AUDIO messages were silently
+    dropped by the bot (no handler registered). Apple Voice Memos sent via
+    Telegram from iOS route as AUDIO, not VOICE, so meeting-note recordings
+    never reached Claude's context.
+
+    Pipeline: download audio → save to workspace → attempt transcription via
+    whisper-cli if available → send to Claude with both file path and
+    transcription text.
+    """
+    if not update.message or not update.message.audio:
+        return
+
+    chat_id = _chat_id(update)
+    claude = _get_claude(context)
+    config: Config = context.bot_data["config"]
+    model = claude.model
+
+    audio = update.message.audio
+    file = await context.bot.get_file(audio.file_id)
+    audio_data = bytes(await file.download_as_bytearray())
+
+    ext = Path(audio.file_name).suffix.lower() if audio.file_name else ".m4a"
+    filename = audio.file_name or f"audio_{audio.file_unique_id}{ext}"
+    saved = _save_to_workspace(audio_data, filename, claude.workspace)
+
+    caption = update.message.caption or ""
+    duration = audio.duration or 0
+    title = audio.title or ""
+    performer = audio.performer or ""
+    meta = f"[Audio saved to: {saved} | {duration}s"
+    if title:
+        meta += f" | title: {title}"
+    if performer:
+        meta += f" | performer: {performer}"
+    meta += "]"
+
+    log.info(
+        "Audio received from chat %s: %s (%ds, %s)",
+        chat_id, filename, duration, audio.mime_type or "?"
+    )
+    log_message(
+        direction="user",
+        chat_id=chat_id,
+        text=caption or f"[audio: {filename}, {duration}s]",
+        media={"type": "audio", "filename": filename, "duration": duration},
+    )
+
+    # Best-effort transcription via whisper-cli if deps available
+    transcript = ""
+    transcribe_error = ""
+    if config.voice_enabled and shutil.which("ffmpeg") and shutil.which("whisper-cli") and config.whisper_model_path.exists():
+        try:
+            transcript = await transcribe_voice(audio_data, config.whisper_model_path)
+        except TranscriptionError as e:
+            transcribe_error = str(e)
+            log.warning("Audio transcription failed for %s: %s", filename, e)
+    else:
+        transcribe_error = "whisper deps not available (ffmpeg/whisper-cli/model); use local-stt MCP via Claude if transcription needed"
+
+    # Echo transcription to user for transparency
+    if transcript:
+        await _reply_safe(update.message, f"_Heard:_ {transcript[:500]}{'…' if len(transcript) > 500 else ''}")
+    elif transcribe_error:
+        await _reply_safe(update.message, f"_Audio saved but not auto-transcribed ({transcribe_error[:100]}). Claude can transcribe via local-stt MCP._")
+
+    # Build the prompt to Claude with both file path and transcript (if any)
+    parts = [caption] if caption else [f"Audio received: {filename}"]
+    parts.append(meta)
+    if transcript:
+        parts.append(f"[Transcription]: {transcript}")
+    elif transcribe_error:
+        parts.append(f"[Transcription unavailable locally: {transcribe_error}]")
+    prompt = "\n".join(parts)
+
+    async with get_lock(chat_id):
+        _set_responding(chat_id)
+        try:
+            await _handle_response(update, context, chat_id, prompt, claude, model)
+        finally:
+            _clear_responding()
+
+
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle voice messages — transcribe via whisper-cpp and send to Claude.
@@ -1609,27 +1697,86 @@ async def _maybe_pickup_task(claude: PersistentClaude, chat_id: int) -> None:
 
         current_section = ""
         first_pickable = None
+        total_open_items = 0  # every `- [ ]` / `- [~]` regardless of section/tags
+        filtered_by_section = 0
+        filtered_by_tag = 0
         for line in tasks_text.splitlines():
             stripped = line.lstrip()
             # Track current section on any markdown heading (#, ##, ###, ####)
             if stripped.startswith("#"):
-                # Extract heading text for exclusion check
                 heading = stripped.lstrip("# ").strip().lower()
                 current_section = heading
                 continue
             # Only pick open checkbox items; `- [~]` is also "in progress, continue"
             if not (stripped.startswith("- [ ]") or stripped.startswith("- [~]")):
                 continue
+            total_open_items += 1
             # Skip items whose current section requires user/external action
             if any(kw in current_section for kw in EXCLUDED_SECTION_KEYWORDS):
+                filtered_by_section += 1
                 continue
             # Skip items with blocked/claimed tags
             if any(tag in line for tag in BLOCKED_TAGS):
+                filtered_by_tag += 1
                 continue
-            first_pickable = line.strip()
-            break
+            if first_pickable is None:
+                first_pickable = line.strip()
+                # don't break — keep counting for coverage telemetry
 
-        if not first_pickable:
+        # Fail-loud coverage check, rate-limited to state-change only.
+        # Telemetry events push every scan (for dashboard accuracy), but log.warning
+        # fires only when we transition INTO a bad state — not every response.
+        # State tracked in /tmp/kai-auto-pickup-state.json:
+        #   - last-known pickable_found boolean
+        #   - last-known total_open_items
+        # Log triggers only when:
+        #   (a) pickable was True last scan but False now → drift or drain moment
+        #   (b) total_open_items drops to 0 when it was >0 before → queue emptied
+        # Pure "still no pickable, still all-blocked" state repeats → silent (dashboard
+        # event still pushes).
+        import json as _json
+        state_path = Path("/tmp/kai-auto-pickup-state.json")
+        prev = {"pickable_found": None, "total_open_items": None}
+        try:
+            if state_path.exists():
+                prev = _json.loads(state_path.read_text())
+        except Exception:
+            pass
+        current = {
+            "pickable_found": first_pickable is not None,
+            "total_open_items": total_open_items,
+        }
+        try:
+            state_path.write_text(_json.dumps(current))
+        except Exception:
+            pass
+
+        events.push("system", {
+            "session_id": "",
+            "auto_pickup_scan": True,
+            "total_open_items": total_open_items,
+            "filtered_by_section": filtered_by_section,
+            "filtered_by_tag": filtered_by_tag,
+            "pickable_found": first_pickable is not None,
+        })
+        if first_pickable is None:
+            # Only emit log line on STATE TRANSITION — avoid spamming when
+            # the queue is legitimately drained for hours/days.
+            was_pickable = prev.get("pickable_found") is True
+            was_nonempty = bool(prev.get("total_open_items") or 0)
+            if total_open_items == 0:
+                if was_nonempty:
+                    log.info("Auto-pickup: TASKS.md drained to zero open checkbox items")
+            else:
+                # items exist but 0 pickable — warn ONLY on transition into this state
+                if was_pickable:
+                    log.warning(
+                        "Auto-pickup: %d open items but 0 pickable "
+                        "(section-filtered=%d, tag-filtered=%d) — possible TASKS.md format drift "
+                        "or all items legitimately blocked. If drift, update EXCLUDED_SECTION_KEYWORDS "
+                        "or BLOCKED_TAGS in bot.py:_maybe_pickup_task.",
+                        total_open_items, filtered_by_section, filtered_by_tag,
+                    )
             return
         has_work = True  # retained for legacy logs
 
@@ -1968,6 +2115,7 @@ def create_bot(config: Config, *, use_webhook: bool = True) -> Application:
     app.add_handler(MessageHandler(filters.VIDEO | filters.VIDEO_NOTE, handle_video))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
+    app.add_handler(MessageHandler(filters.AUDIO, handle_audio))
 
     # Unknown command handler (catches unrecognized /commands)
     app.add_handler(MessageHandler(filters.COMMAND, handle_unknown_command))
