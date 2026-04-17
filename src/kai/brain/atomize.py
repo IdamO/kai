@@ -182,14 +182,20 @@ def _classify_kind(category: str | None, file_path: str, heading: str) -> tuple[
     fp = str(file_path).lower()
     if "user-identity" in fp:
         return ("identity", "identity")
+    # CLAUDE.md = highest-attention operating system per Idam 2026-04-17 directive.
+    # Every heading in CLAUDE.md is identity-class so it force-includes and never decays.
+    if fp.endswith("claude.md") or "/claude.md" in fp:
+        return ("claude_md", "identity")
     if "behavioral-debt" in fp:
         return ("behavioral", "stable")
     if category == "DECISION":
         return ("decision", "semi_stable")
     if category == "MILESTONE":
         return ("milestone", "semi_stable")
+    # [CORRECTION] atoms never decay per Idam 2026-04-17 directive.
+    # "for your brain i want corrections to also be top of mind and not decay so you never forget them"
     if category == "CORRECTION":
-        return ("correction", "semi_stable")
+        return ("correction", "identity")
     if category in ("COMPLETED", "STARTED", "STATUS"):
         return ("operational_log", "ephemeral")
     if category == "INSIGHT":

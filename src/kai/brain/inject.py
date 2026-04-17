@@ -21,6 +21,7 @@ from pathlib import Path
 
 HOME = Path.home()
 TOP_OF_MIND = HOME / ".claude" / "shared" / "atoms" / "top_of_mind.json"
+INJECTION_LOG = HOME / ".claude" / "shared" / "atoms" / "injection-log.jsonl"
 
 # Auto-refresh threshold: if top_of_mind.json older than this, regenerate
 REFRESH_AFTER_SECONDS = 60 * 60  # 1 hour
@@ -87,6 +88,14 @@ def _short_file(path: str) -> str:
 
 def _format_atom(e: dict) -> str:
     cls = e["volatility_class"]
+    # Dependency atoms (Option A supersede-pair co-activation) render with ⊘ to signal
+    # "superseded but kept for causal context; do NOT treat as current state."
+    if e.get("is_dependency"):
+        heading = (e.get("heading") or "").strip().replace("\n", " ")[:80]
+        superseder_head = (e.get("superseder_heading") or "").strip().replace("\n", " ")[:60]
+        source = _short_file(e.get("source_file", ""))
+        line = e.get("source_line", "?")
+        return f"⊘ [superseded ] {heading}\n    → {source}:{line}  (reversed by: {superseder_head})"
     marker = {
         "identity":    "◆",
         "stable":      "●",
@@ -112,27 +121,44 @@ def build_injection_block(max_atoms: int = 40) -> str | None:
     except Exception:
         return None
 
-    atoms = data.get("top", [])[:max_atoms]
+    # Split primaries from dependencies BEFORE truncating. Dependencies are
+    # context-only (Option A co-activation) and shouldn't count against max_atoms.
+    raw_top = data.get("top", [])
+    primary_all = [a for a in raw_top if not a.get("is_dependency")]
+    dep_all = [a for a in raw_top if a.get("is_dependency")]
+    primary_keep = primary_all[:max_atoms]
+    keep_ids = {a["atom_id"] for a in primary_keep}
+    # Only keep dependencies whose superseder is in the kept primary list — otherwise
+    # the dependency has no anchor and would confuse the reader.
+    dep_keep = [a for a in dep_all if a.get("superseded_by") in keep_ids]
+    atoms = primary_keep + dep_keep
     if not atoms:
         return None
 
     meta = data.get("meta", {})
     generated = meta.get("generated_at", "")
 
+    # Separate dependency atoms (Option A co-activation) from primary top-of-mind.
+    # Dependencies render in their own section at the tail so they're adjacent to
+    # superseders for causal-pair reasoning without polluting the IDENTITY section.
+    primary_atoms = [a for a in atoms if not a.get("is_dependency")]
+    dependency_atoms = [a for a in atoms if a.get("is_dependency")]
+
     by_class: dict[str, list[dict]] = {}
-    for a in atoms:
+    for a in primary_atoms:
         by_class.setdefault(a["volatility_class"], []).append(a)
 
     lines: list[str] = []
     lines.append("[KAI BRAIN — Top of Mind (salience-ranked, decay-weighted)]")
     lines.append("")
     lines.append(f"Generated: {generated}  ·  "
-                 f"Showing top {len(atoms)} of {meta.get('count', '?')} ranked atoms  ·  "
-                 "Legend: ◆ identity · ● stable · ◐ semi-stable · ○ operational · ◦ ephemeral · ✗ expired")
-    lines.append("Zombies + explicitly superseded atoms are filtered out (they live in ~/.claude/shared/atoms/superseded.jsonl).")
+                 f"Showing top {len(primary_atoms)} of {meta.get('count', '?')} ranked atoms "
+                 f"(+ {len(dependency_atoms)} supersede-pair dependencies)  ·  "
+                 "Legend: ◆ identity · ● stable · ◐ semi-stable · ○ operational · ◦ ephemeral · ✗ expired · ⊘ superseded-dependency")
+    lines.append("Zombies + explicitly superseded atoms are filtered from primary ranking; those referenced by an active superseder appear in the DEPENDENCIES section for causal context only.")
     lines.append("")
 
-    # Put classes in priority order
+    # Put classes in priority order — CLAUDE.md & user-identity surface first (identity class)
     order = ["identity", "stable", "semi_stable", "operational", "ephemeral", "expired"]
     for cls in order:
         items = by_class.get(cls)
@@ -140,6 +166,13 @@ def build_injection_block(max_atoms: int = 40) -> str | None:
             continue
         lines.append(f"## {cls.upper()}")
         for a in items:
+            lines.append(_format_atom(a))
+        lines.append("")
+
+    # Dependencies section (Option A): predecessors of top-of-mind superseders
+    if dependency_atoms:
+        lines.append("## SUPERSEDED-DEPENDENCIES (causal context — do NOT treat as current state)")
+        for a in dependency_atoms:
             lines.append(_format_atom(a))
         lines.append("")
 
@@ -152,7 +185,32 @@ def build_injection_block(max_atoms: int = 40) -> str | None:
         lines.append("")
 
     lines.append("[END KAI BRAIN]")
-    return "\n".join(lines)
+    block = "\n".join(lines)
+
+    # Atom-reference logging (per 2026-04-17 consult — Opus recommendation).
+    # Append the set of atom_ids injected + class distribution per invocation.
+    # Enables later correlation with response content to calibrate activation function
+    # (Spearman rank correlation between activation scores and atoms-actually-referenced
+    # — Opus bar: ≥ 0.4 for the function to be earning its complexity).
+    try:
+        from collections import Counter
+        cls_counts = Counter(a["volatility_class"] for a in primary_atoms)
+        dep_count = len(dependency_atoms)
+        log_entry = {
+            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "atom_ids": [a["atom_id"] for a in atoms],
+            "primary_count": len(primary_atoms),
+            "dependency_count": dep_count,
+            "class_distribution": dict(cls_counts),
+            "block_chars": len(block),
+        }
+        INJECTION_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with INJECTION_LOG.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception:
+        pass  # logging must never break injection
+
+    return block
 
 
 if __name__ == "__main__":

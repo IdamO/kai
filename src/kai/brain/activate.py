@@ -77,8 +77,10 @@ HALF_LIFE_DAYS = {
 # File-path rules
 PATH_RULES = [
     (re.compile(r"user-identity\.md$"), "identity"),
+    # CLAUDE.md = highest-attention operating system (Idam 2026-04-17 directive).
+    # Identity class → d=0.05 (never decays) AND force-included in top_of_mind.
+    (re.compile(r"CLAUDE\.md$"), "identity"),
     (re.compile(r"behavioral-debt\.(md|yaml)$"), "stable"),
-    (re.compile(r"CLAUDE\.md$"), "stable"),
     (re.compile(r"KYMA-DOCTRINE\.md$"), "stable"),
     (re.compile(r"MEMORY(?:-PRIVATE)?\.md$"), "stable"),
     (re.compile(r"HACKS\.md$"), "semi_stable"),
@@ -93,7 +95,10 @@ PATH_RULES = [
 CATEGORY_RULES = {
     "DECISION": "semi_stable",
     "MILESTONE": "semi_stable",
-    "CORRECTION": "semi_stable",
+    # [CORRECTION] → identity per Idam 2026-04-17: corrections never decay, always top-of-mind.
+    # Rationale: behavioral corrections are the operating-system-level learnings that persist
+    # across all future work. Aging them out means repeating the same mistakes.
+    "CORRECTION": "identity",
     "INSIGHT": "stable",
     "LEARNING": "stable",
     "COMPLETED": "ephemeral",
@@ -278,6 +283,13 @@ CLASS_PRIOR = {
     "expired":     -6.0,  # hard suppression
 }
 
+# Recent-reversal boost: a today's-date [DECISION] / [CORRECTION] / ON-HOLD atom
+# that supersedes at least one prior atom is MORE salient than its base class
+# suggests — it carries fresh-reversal signal. This is what surfaces "I just
+# changed my mind on X" above stale "long-standing stable fact about X".
+RECENT_REVERSAL_KINDS = {"decision", "correction", "milestone", "blocker"}
+REVERSAL_BOOST = 3.0  # nudges a semi_stable reversal into stable range
+
 
 def rank_atoms(atoms: list[dict], edges: list[dict], budget: int = 50) -> list[dict]:
     """Return the top_of_mind list. Each entry contains minimal reference fields."""
@@ -321,6 +333,17 @@ def rank_atoms(atoms: list[dict], edges: list[dict], budget: int = 50) -> list[d
         raw_activation = compute_activation(atom_for_activation, events, d, now)
         # Apply class prior to give identity / stable atoms their due
         activation = raw_activation + CLASS_PRIOR.get(cls, 0.0)
+        # Recent-reversal boost: decisions that supersede something AND are recent
+        # deserve to surface regardless of their file classification.
+        kind = a.get("kind", "")
+        if kind in RECENT_REVERSAL_KINDS and a.get("supersedes"):
+            # Age gate: only boost if superseder is <= 30 days old
+            created = _parse_iso(a.get("created_at", "")) or now
+            file_dt = _log_date_from_path(a.get("source_file", ""))
+            eff_created = file_dt or created
+            age_days = (now - eff_created).total_seconds() / 86400.0
+            if age_days < 30:
+                activation += REVERSAL_BOOST * max(0.0, 1.0 - age_days / 30.0)
         scored.append((activation, a, cls))
 
     # Force-include identity + stable atoms (they always matter)
@@ -358,6 +381,7 @@ def rank_atoms(atoms: list[dict], edges: list[dict], budget: int = 50) -> list[d
 
     # Shape the output: only fields needed for injection
     top_of_mind = []
+    seen_atom_ids: set[str] = set()
     for activation, atom, cls in selected:
         top_of_mind.append({
             "atom_id": atom["atom_id"],
@@ -375,7 +399,53 @@ def rank_atoms(atoms: list[dict], edges: list[dict], budget: int = 50) -> list[d
             "truth_links": atom.get("truth_links") or [],
             "supersedes": atom.get("supersedes") or [],
             "extracted_entities": (atom.get("extracted_entities") or [])[:5],
+            "is_dependency": False,
         })
+        seen_atom_ids.add(atom["atom_id"])
+
+    # ── Option A: supersede-pair co-activation ────────────────────────────
+    # Per 2026-04-17 consult synthesis (Opus + Sonnet converged):
+    # When a high-activation [DECISION]/[CORRECTION] atom has `supersedes: [X]`,
+    # inject X as a context-only DEPENDENCY with zero activation cost (not counted
+    # toward budget). This preserves causal locality ("what reversed from X?" queries)
+    # without promoting zombies to top-of-mind. Rendering uses ⊘ marker dim-formatted.
+    # Fixes the recent_decisions regression identified in the Apr-16 A/B test.
+    by_id_all = {a["atom_id"]: a for a in atoms}
+    dependency_entries: list[dict] = []
+    for activation, atom, cls in selected:
+        superseded_refs = atom.get("supersedes") or []
+        if not superseded_refs:
+            continue
+        for sup_id in superseded_refs:
+            if sup_id in seen_atom_ids:
+                continue  # already in top_of_mind somehow (shouldn't happen — but safe)
+            pred = by_id_all.get(sup_id)
+            if not pred:
+                continue
+            pred_cls, _pred_ttl = classify(pred)
+            dependency_entries.append({
+                "atom_id": pred["atom_id"],
+                "activation": 0.0,  # dependencies have zero activation by design
+                "volatility_class": pred_cls,
+                "decay_rate": DECAY_RATES.get(pred_cls, 0.5),
+                "half_life_days": HALF_LIFE_DAYS.get(pred_cls, 14),
+                "ttl_hint": pred.get("ttl_hint"),
+                "source_file": pred["source_file"],
+                "source_line": pred.get("source_line"),
+                "heading": pred.get("heading"),
+                "kind": pred.get("kind"),
+                "category": pred.get("category"),
+                "body_preview": (pred.get("body") or "")[:200],  # shorter preview for deps
+                "truth_links": [],
+                "supersedes": [],
+                "extracted_entities": [],
+                "is_dependency": True,
+                "superseded_by": atom["atom_id"],
+                "superseder_heading": (atom.get("heading") or "")[:100],
+            })
+            seen_atom_ids.add(sup_id)
+
+    top_of_mind.extend(dependency_entries)
     return top_of_mind
 
 
