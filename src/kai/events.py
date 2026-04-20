@@ -45,13 +45,8 @@ def _persist(entry: dict) -> None:
         _EVENTS_DIR.mkdir(parents=True, exist_ok=True)
         date = entry["ts"][:10]
         path = _EVENTS_DIR / f"{date}.jsonl"
-        compact = entry
-        # Truncate thinking text (ephemeral, huge, not useful in history)
-        data = entry.get("data", {})
-        if entry.get("type") == "thinking" and len(data.get("thinking", "")) > 1000:
-            compact = {**entry, "data": {**data, "thinking": data["thinking"][:1000] + "..."}}
         with open(path, "a") as f:
-            f.write(json.dumps(compact, separators=(",", ":")) + "\n")
+            f.write(json.dumps(entry, separators=(",", ":")) + "\n")
     except Exception:
         pass  # Never let persistence failure break event flow
 

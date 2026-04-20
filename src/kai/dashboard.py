@@ -74,6 +74,7 @@ body {
 .line .body { flex: 1; }
 .line.think .label { color: #bc8cff; }
 .line.think .body { color: #9d86c9; font-style: italic; }
+.line.think .body.encrypted { color: #6c5a8a; font-style: italic; opacity: 0.7; }
 .line.tool .label { color: #d29922; }
 .line.tool .body { color: #e3b341; }
 .line.tool .args { color: #6e7681; }
@@ -156,7 +157,9 @@ function addEvent(ev) {
     if (ev.type === 'thinking') {
         line.className = 'line think';
         let thought = d.thinking || '';
-        if (thought.length > 200) {
+        if (d.encrypted) {
+            line.innerHTML = time + '<span class="label">THINK </span><span class="body encrypted">[reasoning \u2014 encrypted by Opus 4.7]</span>';
+        } else if (thought.length > 200) {
             line.className += ' expandable';
             let preview = thought.slice(0, 150).split('\n')[0] + '...';
             line.innerHTML = time + '<span class="label">THINK </span><span class="body">'
@@ -745,7 +748,7 @@ async def _handle_conversations(request: web.Request) -> web.Response:
                     messages.append({
                         "ts": msg.get("ts", ""),
                         "dir": msg.get("dir", ""),
-                        "text": text[:1000],
+                        "text": text,
                         "date": f.stem,
                         "has_media": bool(msg.get("media")),
                     })

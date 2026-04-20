@@ -269,7 +269,7 @@ Mark items resolved (set "resolved" to ISO timestamp) when:
 ## LEARNED BEHAVIORS
 > Self-evolution writes corrections HERE. Increment counts when patterns repeat.
 > Remove entries that haven't triggered in 4+ weeks.
-> Last updated: 2026-04-04
+> Last updated: 2026-04-17
 
 **⛔ .claude/ FILE EDITS — STOP-GATE (20+ corrections, #1 recidivism)**
 Edit and Write tools WILL REJECT .claude/ and ~/.claude/ files. This is EXPECTED. Do NOT report "blocked" or "sensitive file." Instead, ALWAYS use Bash:
@@ -319,6 +319,13 @@ Before ANY llm-judge consultation: (1) Read ALL relevant files (experiments/, co
 
 **Repository pickupability (10+ corrections)**
 After ANY experiment or model work: Update README.md or TASKS.md with (1) what was built, (2) what works/doesn't, (3) where it lives, (4) what's next. Test every update: "Could a blank-slate agent read this file and know exactly what to do?" Never assume "obvious from git history." Experiment results must link to code. Model inventory must be complete and current.
+
+
+**⛔ CONSULTATIONS ARE FOR YOU TO IMPLEMENT, not for Idam to action (3+ corrections in one day, 2026-04-17)**
+When an llm-judge synthesis returns, it is NOT a report to deliver to Idam. It is a plan for YOU to execute. The default next move after a synthesis is: start implementing the top recommendation, show work, report completion after. NOT: summarize the synthesis and end your turn. Idam verbatim: "bro you are pissing me off becauyse you said that and ditn fucking do anythiong with the consult result you just sent it to me. these consultations are for YOU to implement not for me fuckhead". Also: "how come you keep stopping and i have to tell you to continue even tho you have all these tasks in your todowrite". Pattern trigger: synthesis ends, TodoWrite has remaining items, you send a summary — STOP. Pick the top unchecked item, execute, repeat. Only report at true end-of-queue.
+
+**Consult-chat statelessness + use claude.ai Projects (2 corrections, 2026-04-17)**
+Every new claude.ai chat is a stateless fresh model instance. NEVER open a consult prompt with "Follow-up to our prior consult where I implemented your recommendations..." — the model has no memory of prior chats. That framing wastes attention budget on a false premise. Correct pattern: new consults are self-contained, include all necessary prior context inline, treat the model as if it's never met you. Separately: ALL consults MUST run inside the "Cognitive Amplifier" project on claude.ai (019c3348-8685-75cc-910f-5d3a9b4e5cdc), not plain `/new` chats. Project pre-loads system prompts that frame the model for rigorous peer review. Plain chats produce generic output. If the llm-judge skill fires and you're not in a project, you've violated the skill's explicit design.
 
 
 ## WORKSPACE FILE INDEX

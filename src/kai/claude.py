@@ -403,6 +403,18 @@ class PersistentClaude:
             return
 
         # ── Claude backend (default): persistent subprocess ──
+        # Model selection order:
+        #   1. KAI_CLAUDE_MODEL env var (escape hatch — e.g. set to
+        #      "claude-opus-4-6" to restore cleartext thinking visibility,
+        #      trading off Opus 4.7's 1M context + latest capabilities for
+        #      visible reasoning until upstream bug #31143 ships a fix).
+        #   2. self._MODEL_IDS mapping (keyed by alias)
+        #   3. self.model raw
+        override_model = os.environ.get("KAI_CLAUDE_MODEL")
+        resolved_model_id = (
+            override_model
+            or self._MODEL_IDS.get(self.model, self.model)
+        )
         claude_cmd = [
             "claude",
             "--input-format",
@@ -411,7 +423,7 @@ class PersistentClaude:
             "stream-json",
             "--verbose",
             "--model",
-            self._MODEL_IDS.get(self.model, self.model),
+            resolved_model_id,
             "--permission-mode",
             "bypassPermissions",
             "--effort",
@@ -426,10 +438,10 @@ class PersistentClaude:
         else:
             cmd = claude_cmd
 
-        resolved_model = self._MODEL_IDS.get(self.model, self.model)
         log.info(
-            "Starting persistent Claude process (model=%s -> %s, user=%s)",
-            self.model, resolved_model,
+            "Starting persistent Claude process (model=%s -> %s%s, user=%s)",
+            self.model, resolved_model_id,
+            " [KAI_CLAUDE_MODEL override]" if override_model else "",
             self.claude_user or "(same as bot)",
         )
 
@@ -989,13 +1001,30 @@ class PersistentClaude:
                                     "is_error": block.get("is_error", False),
                                 })
                             elif btype == "thinking":
-                                # Opus 4.7+ returns empty `thinking` with opaque `signature` —
-                                # extended reasoning is encrypted server-side, not exposed to clients.
-                                # Sonnet 4.5 / Haiku 4.5 still return plaintext.
-                                thought_text = block.get("thinking") or block.get("text") or ""
+                                # Opus 4.7 defaults thinking.display="omitted" → empty `thinking`
+                                # field + opaque `signature`. Cleartext summaries are enabled via
+                                # settings.json "showThinkingSummaries": true (CLI v2.1.111+).
+                                # Summary text may arrive at different keys depending on CLI version
+                                # (see anthropics/claude-code issues #31143, #31326), so probe several.
+                                thought_text = (
+                                    block.get("thinking")
+                                    or block.get("text")
+                                    or block.get("summary")
+                                    or ""
+                                )
+                                if not thought_text and isinstance(block.get("summaries"), list):
+                                    parts = [
+                                        s.get("text", "") if isinstance(s, dict) else str(s)
+                                        for s in block["summaries"]
+                                    ]
+                                    thought_text = "\n".join(p for p in parts if p)
                                 payload = {"thinking": thought_text}
                                 if not thought_text and block.get("signature"):
                                     payload["encrypted"] = True
+                                    log.warning(
+                                        "thinking block empty despite signature; raw keys=%s",
+                                        list(block.keys()),
+                                    )
                                 events.push("thinking", payload)
                             else:
                                 events.push(btype or "unknown", block)

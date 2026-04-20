@@ -36,8 +36,9 @@ Both Opus 4.7 and Sonnet 4.5 independently reached the same conclusion: **Bridge
 
 **Next actions I can do without unblock**:
 - [x] **llm-judge consult on Obsidian-for-music SHIPPED 2026-04-17** - Opus 4.7 (25,988 chars) + Sonnet 4.5 (27,580 chars) independent responses + blind judge synthesis (~4000 words, 226KB PDF). Chat URLs: `claude.ai/chat/bf335763...` (Opus), `claude.ai/chat/72a1d1e5...` (Sonnet). Emailed to idam Gmail: msg `19d9c90c61db6fda` (Opus), `19d9ca55164b80dd` (judge synthesis). Artifacts at `files/consultations/2026-04-17-obsidian-for-music/`. **Both models converged independently**: Bridge widget is THE product, Obsidian-for-music reframe is cope/Einstellung. Judge verdict (80% confidence): ship Bridge to 10 Substack curators by Fri Apr 24; do NOT scope vault UX; commit to SR007 only if Week 6 shows 3+ curators embedded in multiple posts.
-- [ ] Write arxiv preprint on DeepPref + stem-ablation (~4hr, Sonnet Apr 11 suggestion — produces research moat credibility for a16z speedrun deck)
+- [ ] [DEFERRED per 2026-04-18 llm-judge synthesis §3 kill-list #4] Write arxiv preprint on DeepPref + stem-ablation (~4hr) — synthesis verdict: "If published as blog, do it AFTER May 17, not during pitch window." Kept as pending but do NOT auto-pick during Apr 18–May 17 window.
 - [ ] a16z SR007 deck drafting (May 17 deadline, 30 days out)
+- [x] [SYNTHESIS pre-mortem #1, by May 1] Permutation test on correlator edges — COMPLETED 2026-04-18 04:05 PT. v1 formula FAILED (2/20 robust), v1-regularized PASSED (19/20 robust, mean intersection 11.63/20). Commits: kyma-external-brain 90f09c5, kyma-engine 1047e05. Findings: `.claude/research-results/2026-04-18-cooccurrence-vs-compatibility.md`.
 - [ ] [DEFERRED per Apr 17 consult] First-session onboarding UX (Obsidian-for-music vault) - only pursue if Bridge widget Week 6 kill criteria HITS; if Bridge misses, pivot away from vault framing per judge synthesis
 
 **Blocked on Idam**:
@@ -144,7 +145,17 @@ Both Opus 4.7 and Sonnet 4.5 independently reached the same conclusion: **Bridge
 **Location:** Kyma workspace in idam@kyma.stream Notion
 **Columns:** Service | Account Email | Billing Status | Mercury Card | Monthly Cost | Purpose
 
-## Current Focus (updated 2026-04-11 17:45 PDT)
+## Current Focus (updated 2026-04-20 01:05 PDT)
+
+### Bridge Referer Telemetry ⚠️ VERIFICATION BLOCKED
+**Status:** Code complete, verification blocked on external drive mount
+**What:** Stats endpoint (/api/bridge/stats) returns referer data grouped by domain
+**Progress:**
+- [x] Code reviewed — all 4 components verified (table, record method, stats aggregation, header capture)
+- [x] Test script passes — domain extraction logic matches bridge.py implementation  
+- [ ] Live verification BLOCKED — server won't start without /Volumes/Kyma/spotify-metadata/spotify_clean.sqlite3
+**Next:** Mount external drive OR modify bridge.py to make Spotify DB optional for testing
+**Artifacts:** /tmp/test_referer_parsing.py (6/6 tests pass), daily log 2026-04-20 § 05:00
 
 ### KYMA BRIDGE — Embeddable 12s Mashup Widget (TOP PRIORITY)
 **Decision:** Dual-model consultation (Opus 4.6 + Sonnet 4.5, 2026-04-11) converged: ship Bridge.
@@ -326,3 +337,97 @@ Ranks 1-3 shipped + 4 consult-driven fixes (commit 964ebe9e). 634 atoms, 617 sup
 ## Open (Non-Pivot)
 - [ ] **Covered CA eligibility** — Needs Idam login.
 - [ ] **Fundraise narrative reframe** — Now framed around Taste Oracle.
+
+## Queued — CLAUDE.md Super-Upgrade Consultation (requested 2026-04-17 mid-stream)
+
+**Request (Idam verbatim):** "Queue up a consultation on how to make your global and local Claude.mds so fire that they match the cognitive amplifier projects Claude.md and tell the consultants to generate the full Claude.mds. Tell them not to care about character limits and stuff because we don't care and we want it as dense and as cracked as the cognitive amplifier project and personal instructions including attention mechanisms like repetition etc etc (but don't truncate make it clear in the consults). Queue this in tasks after the project research"
+
+**Scope:**
+- Target: ~/.claude/CLAUDE.md (global) + /Users/idamo/kai/workspace/.claude/CLAUDE.md (local Kai workspace) + possibly other workspace CLAUDE.mds
+- Benchmark: Cognitive Amplifier claude.ai project system prompt (the one inside 019c3348-8685-75cc-910f-5d3a9b4e5cdc)
+- Explicit signal: DENSITY, CRACKED-NESS, attention mechanisms (repetition of hot rules), no char-limit compliance
+- Consultants must GENERATE full CLAUDE.md text (not advice-about-CLAUDE.md) — make this unambiguous in the prompt
+- Consultants must be told the output will be TRUNCATED if they play short — instruct to not self-censor
+
+**Pre-work Kai must do before running the consult:**
+1. Dump current ~/.claude/CLAUDE.md (global Cognitive Amplifier base)
+2. Dump current /Users/idamo/kai/workspace/.claude/CLAUDE.md (Kai-identity layer)
+3. Extract the Cognitive-Amplifier-project system prompt (need to grab from claude.ai via Playwright or API)
+4. Build a rich consult prompt with all three as context + explicit directives
+5. Run Opus 4.7 + Sonnet 4.5 via Cognitive Amplifier project (self-referential but correct)
+6. Synthesize + present TWO FULL replacement CLAUDE.mds back to Idam
+
+**Explicit directives to consultants:**
+- No character limits. Be dense. Be cracked. Repetition for attention is OK.
+- OUTPUT MUST BE FULL CLAUDE.MD TEXT READY TO PASTE, not advice.
+- Should read like a weaponized system prompt, not a policy doc.
+- Must include: identity, first-principles protocol, execution mastery, hyper-verification, outbound comms, autonomy rules, cognitive amplifier IDENTITY triggers, attention repetition mechanisms, hard-NOs, explicit agentic-behavior primitives.
+- Must compile to a single file (no split references unless necessary).
+
+**Timing:** Execute AFTER the current orthogonal-candidate research is delivered to Idam.
+
+**Status:** PENDING
+
+## 🔴 External Brain — Sunday (2026-04-20) Deliverable
+
+**Repo**: /Users/idamo/code/kyma-external-brain
+**Daily cron**: Job 216 (06:00 + 18:00)
+**Status** (2026-04-17 23:10 UTC):
+- Items: 4,371 across 5 sources (reddit 2.6k, arena 893, reddit_search 583, hackernews 158, substack 115)
+- Entities: 2,515 | Mentions: 3,578 | Resolved items: 1,100 / 4,371
+- Edges: 359 (correlator ran on 1,100-resolved corpus)
+- Hypotheses: 15 (auto-research cycles)
+- First synthesis: data/reports/2026-04-18-synthesis-30d.md (Sonnet, 30-day window)
+
+**In progress**: resolver2 (PID 2494) processing remaining 3,271 unresolved items.
+
+### Ready-to-run (any agent can pick up once resolver2 finishes):
+```bash
+cd /Users/idamo/code/kyma-external-brain
+python3 -m correlate.main --window-days 7 --min-weight 0.12
+python3 -m brain.auto_research --per-cycle 20 --iterations 1 --exploration 0.3 --model haiku
+python3 -m correlate.synthesis --window-days 7 --model sonnet --max-tokens 6000
+```
+Success criterion: `data/reports/YYYY-MM-DD-synthesis-7d.md` exists + contains "cross-source convergence" section with ≥5 entities.
+
+### BLOCKED on Idam
+- `APIFY_TOKEN` in `/Users/idamo/kai/.env` — unblocks TikTok/IG/AppStore review harvest (16 competitor App IDs ready in `config/competitors.json`).
+
+### Kill criterion (Day 7 = 2026-04-20 EOD)
+If Sunday synthesis output is indistinguishable from "top of r/indieheads this week," rethink the architecture per Opus consult verdict.
+
+---
+
+## Queued — External Culture-Intelligence Brain Architecture Consult (requested 2026-04-17 12:28 PT)
+
+**Request (Idam verbatim):** "you didnt do a repo consultation with claude on how to do the research stuff so we can create this external brain that is constantly ingesting tiktok, reddit, substack, youtube and other music/culture/tech sources that could then allow us to find these weird corellations and match them to our own internal brain (the external and internal brain shiould be separate) and should use the karpathy style auto-research to reinforce what to try and also explore edge nodes etc. I want to make this a big atchitectural pipeline that runs frequently like daily or something and draws connections between what people are taling about etc so we see weird relationships between like this one reddit post/sentiment and this ticktok video and our idea and the industry and fashio etc... an idea engine with stigmergy with differet modular inoput sources with full piupleine architecutres etc that an llm cna crawl and get amazing insight on what to build whoi to target what it looks like its like getting real customer feedback without asking users or being able to take what they are saying, map to our vision and see where they overlap"
+
+**Scope:**
+- SEPARATE external brain (culture signal) from internal brain (Kyma strategy/research/experiments/notion/voice memos/daily logs)
+- Modular ingestion: TikTok, Reddit, Substack, YouTube, + fashion/tech/music-industry sources (music press, RateYourMusic, Hypebeast, TechCrunch, podcasts, Trend reports, etc.)
+- Daily+ cadence
+- Karpathy auto-research: reinforce what works, explore edge nodes (exploration/exploitation balance)
+- Stigmergy: modules communicate via shared artifacts
+- Cross-correlation: find "weird relationships" between external sources AND internal brain
+- LLM-crawlable query surface: "what to build / who to target / what it looks like"
+- Goal: passive ethnographic feedback, map to Kyma vision, see overlaps
+
+**Pre-work:**
+1. Consult prompt staged at: kyma-ideation/03-consults/2026-04-17-external-brain/00-prompt.md (drafting now)
+2. Run Opus 4.7 + Sonnet 4.5 in Cognitive Amplifier project
+3. Blind judge synthesis
+4. Write architectural blueprint + 30-day MVP plan + full tech stack recommendation
+
+**Explicit directives to consultants:**
+- Full architectural blueprint NOT advice
+- Ingestion strategy per source (APIs/scraping/rate limits/freshness)
+- Embedding + correlation engine design (pgvector? FAISS? Weaviate? hybrid?)
+- Karpathy loop implementation (metric, reward, exploration schedule)
+- Stigmergic module communication protocol
+- Cost budget at pilot + scale
+- LLM query interface spec
+- 30/60/90 day rollout
+
+**Priority:** This is ahead of CLAUDE.md upgrade consult (also queued). External brain has architectural dependencies that need decision before coding starts.
+
+**Status:** PENDING (prompt drafting 2026-04-17 12:30 PT)
