@@ -361,6 +361,38 @@ def _atom_chronology_key(a: Atom) -> tuple[str, int]:
     return (a.source_file, a.source_line)
 
 
+# Strip category/status tokens so "[COMPLETED] Birthday Gift v4.2" reduces to "birthday gift v4.2"
+_CATEGORY_PREFIX_RE = re.compile(
+    r"^\s*(?:\[(?:completed|started|correction|decision|milestone|learning|insight|blocker|question|experiment)\]|"
+    r"(?:\d{1,2}:\d{2}\s*)?\[\w+\])\s*",
+    re.IGNORECASE,
+)
+
+_GENERIC_STOP = {"in", "on", "of", "the", "a", "and", "for", "to", "with", "from", "at",
+                 "progress", "complete", "done", "update", "report", "status", "catch-up",
+                 "full", "new", "old", "day", "week"}
+
+
+def _heading_topic_signature(heading: str) -> list[str]:
+    """Extract substantive content tokens from a heading, minus category/status prefixes."""
+    h = _CATEGORY_PREFIX_RE.sub("", heading).lower()
+    # Drop anything after an em-dash / colon separator to strip trailing descriptor phrases
+    for sep in [" — ", " - ", ": "]:
+        idx = h.find(sep)
+        if 0 < idx < 40:  # only strip if the prefix is short
+            h = h[:idx]
+    tokens = [t for t in re.findall(r"[a-z0-9][a-z0-9.\-_]*", h)
+              if t not in _GENERIC_STOP and len(t) > 1]
+    return tokens[:4]  # first 4 substantive tokens
+
+
+def _heading_topic_match(a_heading: str, b_heading: str) -> bool:
+    """True if two headings share >=2 substantive content tokens (post-category-strip)."""
+    a_sig = set(_heading_topic_signature(a_heading))
+    b_sig = set(_heading_topic_signature(b_heading))
+    return len(a_sig & b_sig) >= 2
+
+
 def detect_supersede_edges(atoms: list[Atom]) -> list[dict]:
     """Return list of supersede edges: {superseder, superseded, reason, evidence}.
 
@@ -433,6 +465,14 @@ def detect_supersede_edges(atoms: list[Atom]) -> list[dict]:
                 both_headings = [e for e in overlap
                                   if e in prior_heading_lc and e in a_heading_lc]
                 if not both_headings:
+                    continue
+                # 2026-04-21: REJECT if overlap has no strong topic AND headings don't share
+                # >=2 substantive content tokens. This kills "[COMPLETED] Birthday Gift" ->
+                # "[COMPLETED] Full Email Catch-Up" false-positives that share generic
+                # entities but no topical identity. Real in-file revisions (v4.1 -> v4.2)
+                # pass because version tags survive the stop-word filter.
+                has_strong = any(_is_strong_topic(e) for e in both_headings)
+                if not has_strong and not _heading_topic_match(a.heading, prior.heading):
                     continue
                 candidates.add(prior.atom_id)
 
