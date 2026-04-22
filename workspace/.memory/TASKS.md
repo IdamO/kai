@@ -1,5 +1,19 @@
 # Active Tasks
 
+## DJ 5th-Player Thesis: Clean research consult COMPLETE (2026-04-22)
+
+**Status:** Research synthesis complete, no open action items. Findings captured in MEMORY.md § "DJ-curator 5th-player framing: CATEGORY ERROR".
+
+**Artifacts:** files/consultations/2026-04-22-dj-5th-player-CLEAN/ (prompt + Opus 20.7KB + Sonnet 24.7KB + judge-synthesis 4,995 words).
+
+**Finding summary:** Both models converge on category error. Function real + load-bearing, but no independent economic home. 9-for-9 absorption base rate across music disruptions + adjacent taste-compression domains. NARRATION is the load-bearing primitive, not picking. Async narration works for text (Substack), fails for music (continuous/ambient consumption). Sync narration works live but collapses into influencer dynamics at scale.
+
+**Load-bearing primitives to preserve in any future thinking:** PICK + NARRATE + TRUST + IDENTITY. Incumbent baggage to shed: TECHNICAL-EXECUTE + PERFORM + LIVE-PRESENCE.
+
+**What would kill the framing (for future stress-testing):** (1) Spotify AI DJ hits 50%+ engagement with no human-curator subscription uptake; (2) labels co-opt top curators as employees at scale; (3) Hook/GRAI legalize gray-market remix, labels capture all value.
+
+**Not open for action** — this is captured research. Future product thinking should start from these findings, not from the original framing. Consumer-only doctrine in force.
+
 ## 🧠 KYMA OS — v3 COLLAPSED TO "Obsidian for Music" (2026-04-17)
 **🔑 2026-04-17 DUAL-MODEL CONSULT VERDICT (update to earlier-in-day collapse decision):**
 Both Opus 4.7 and Sonnet 4.5 independently reached the same conclusion: **Bridge widget is THE product. Obsidian-for-music framing was cope/Einstellung.** Judge synthesis ships Bridge to 10 Substack curators by Fri Apr 24 as the ONLY executable this-week move. Full synthesis in `files/consultations/2026-04-17-obsidian-for-music/judge-synthesis.pdf`, emailed to idam Gmail msg `19d9ca55164b80dd`. Convergence from two models with different analytical frames (Opus: Are.na-as-product-shape / Sonnet: creator-economy-sync-licensing teardown) is the strongest possible llm-judge signal.
@@ -431,3 +445,6 @@ If Sunday synthesis output is indistinguishable from "top of r/indieheads this w
 **Priority:** This is ahead of CLAUDE.md upgrade consult (also queued). External brain has architectural dependencies that need decision before coding starts.
 
 **Status:** PENDING (prompt drafting 2026-04-17 12:30 PT)
+
+## 🪦 EXTERNAL BRAIN — KILLED 2026-04-21
+Founder verdict: output was trend-piece slop, readlist didn't rescue. Kill criterion cleared (synthesis indistinguishable from r/indieheads top-of-week). Job 216 cron deleted. Source + data preserved at /Users/idamo/code/kyma-external-brain/ for one-shot queries. No recurring ingest/synthesis.
