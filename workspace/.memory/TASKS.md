@@ -65,28 +65,16 @@ Both Opus 4.7 and Sonnet 4.5 independently reached the same conclusion: **Bridge
 
 ---
 
-## 🚨 URGENT DEADLINES — April 15, 2026 (TODAY)
+## ⚠️ POST-DEADLINE FOLLOW-UP (Apr 15 items, 7 days past — verify state)
 
-### Tax Filing + Payment
-**Status:** Return signed, installment plan NOT set up
-**Amount:** $91,647 ($88K federal + $3.5K CA)
-**Calendar:** 2026-04-15 09:00-10:00 AM PT (event created)
-**Action required TODAY:**
-  1. Call IRS 800-829-4933 for long-term installment plan (>K requires phone)
-     - Have ready: EIN 41-5195123, Name: IDAM Emmanuel Obiahu
-     - Expected: monthly payment plan, interest + penalties apply
-  2. OR: Short-term 180-day plan at irs.gov/opa (~$15K/month, $0 fee)
-**Blocker:** None - both options available
-**Notes:** Same day as Verra consultation (1 PM PT)
+### Tax Filing + Payment (Apr 15 deadline passed)
+**Status as of 2026-04-22:** Return signed Mar 23. Installment plan STILL NOT SET UP. Blocked on Idam's ID.me biometric auth to reach irs.gov/opa. Balance $91,647 ($88K fed + $3.5K CA). Short-term 180-day plan (<$100K, $0 setup fee) remains the cleanest path; requires Idam's photo ID + bank routing/account + IRS Online Account login.
+**Reminder jobs firing monthly:** #61 May 1, #62 Jun 1, #63 Jul 1, #64 Aug 1, #65 Sep 1, #57 Jun 15 (Q2 estimated), #58 Sep 15 (Q3 + Oct 15 return).
+**Action on Idam: set up installment agreement ASAP.** Penalties accruing at 0.5%/mo failure-to-pay + 8% annual interest = ~$4,500/year.
 
-### Verra 93A Consultation - Clifford Law
-**Status:** Scheduled
-**When:** 2026-04-15 13:00-14:00 PM PT (event created)
-**Zoom:** 843 2538 8506 / 915998
-**Brief:** files/verra-93a-litigation-brief-v5.md
-**Amount at stake:** $15K-$75K range
-**Reminder:** Job #198 fires 12:45 PM PT
-**Notes:** Same day as tax deadline (morning)
+### Verra 93A Consultation (Clifford Law, held Apr 15)
+**Status as of 2026-04-22:** Consultation COMPLETED Apr 15. Courtney Libon (GBLS) followed up Apr 17 with attorney referrals — Colin Bunnell, Ed Rice. Idam told her "will reach out next week" in reply (sent msg 19d9cec48c60de3c, Apr 17 19:35 PT).
+**Action on Idam: contact Colin Bunnell and Ed Rice this week (Apr 20-24 window, currently in-window).** Brief at `files/verra-93a-litigation-brief-v5.md`. $15K-$75K range at stake; Apr 30 deposit deadline or Sep 11 fallback.
 
 
 ## Kai Infra Maintenance
@@ -289,11 +277,15 @@ Ranks 1-3 shipped + 4 consult-driven fixes (commit 964ebe9e). 634 atoms, 617 sup
 - MODEL-004 bridge predictor (r=0.969)
 - All data ingestors (112.5M+ transitions)
 
-### Needs Idam's Attention (updated 2026-04-11)
-- **Tax deadline April 15** (4 days) — $91,647 owed. >$50K = must CALL IRS 800-829-4933 for long-term installment (online portal caps at $50K). Short-term (180 days, $0 fee) available online at irs.gov/opa but requires ~$15K/month.
-- **Verra 93A — Clifford consultation Tue Apr 15, 1 PM PT** (4 PM ET). Zoom: 843 2538 8506 / 915998. Reminder job #198 fires 12:45 PM PT. Brief: `files/verra-93a-litigation-brief-v5.md`. NOTE: Apr 15 is also tax deadline day.
-- **Share payment**: Both founders owe $45 each to Kyma Computer Inc via Mercury ACH/check.
-- **Emily White: text her** — 304-941-8118 re Shibuya TestFlight.
+### Needs Idam's Attention (updated 2026-04-22)
+- **IRS installment plan** — still not set up (blocked on ID.me biometric auth). Penalties accruing. See § POST-DEADLINE FOLLOW-UP above for options.
+- **Verra 93A follow-up** — contact Colin Bunnell + Ed Rice (Courtney Libon referrals from Apr 17). See § POST-DEADLINE FOLLOW-UP above.
+- **DJ 5th-player thesis** — path A/B/C commitment on clean synthesis (`files/consultations/2026-04-22-dj-5th-player-CLEAN/kyma-implications-decision-frame.md` sent to Telegram Apr 22). Consumer-only doctrine in force per Apr 22 CORRECTION.
+- **Hook iOS self-test** — install from App Store (ID 6476193312), requires iPhone iOS 18+. 20 min of real usage > entire press cycle.
+- **SR007 skip-or-apply** — decision deadline May 17 (Job #226 fires that day). Current lean: skip, apply SR008 with 30-day thesis-commit plan.
+- **Share payment** — $45 each to Kyma Computer Inc via Mercury ACH/check.
+- **Emily White** — text her 304-941-8118 re Shibuya TestFlight.
+- **Day 2 evening reflection (75 HARD)** — still `pending_reply` from Apr 20 evening cron.
 
 ### Recently Resolved
 - **Apolline birthday gift**: ✅ SHIPPED v4.7. Live at Vercel: https://birthday-gift-three-pied.vercel.app
