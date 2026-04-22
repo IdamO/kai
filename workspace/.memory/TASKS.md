@@ -145,14 +145,13 @@ Both Opus 4.7 and Sonnet 4.5 independently reached the same conclusion: **Bridge
 - Update code references
 - Clean documentation
 
-### MongoDB for Startups
-**Status:** READY TO ACTIVATE - code received, browser window opened
-**Credit:** $5,000 Atlas credit
-**Code:** ACCELERATOR-PARTNER-5000-F8LXYC (valid through program term)
-**Action:** (1) Go to cloud.mongodb.com/v2, (2) Login/create account with idam@kyma.stream, (3) Navigate to Billing, (4) Click "Apply Code", (5) Enter activation code
-**URL:** Browser window opened at cloud.mongodb.com
-**Email:** Acceptance email received Apr 13, 9:47 AM
-**Next:** Complete activation, add to reference_startup_credits.md as COMPLETE
+### MongoDB for Startups ✅ COMPLETE (2026-04-22 02:25 PDT)
+**Status:** ACTIVATED. $5,000 Atlas credit applied to Kyma Computer org (orgId 69e88fe0079ecd731f33bbc1), expires 04/22/27.
+**Path taken:** Google SSO via idam@kyma.stream (password-auth flow failed — no prior account existed). Auto-created org renamed from "Idam's Org - 2026-04-22" to "Kyma Computer".
+**[OBSERVED]:** files/screenshots/mongodb-atlas-credit-applied-2026-04-22.png + mongodb-atlas-kyma-org-renamed-2026-04-22.png
+**Log:** daily log 2026-04-22 § 02:25 [COMPLETED]
+**Memory updated:** reference_startup_credits.md moved from Pending to Secured
+**Follow-up for Idam (non-blocking):** invite Apolline to Kyma Computer org when convenient.
 
 ### Notion Service Table
 **Status:** NOT STARTED
