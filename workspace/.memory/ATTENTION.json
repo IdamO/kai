@@ -1,0 +1,518 @@
+{
+  "items": [
+    {
+      "id": "kyma-75-hard-program-2026-04-20",
+      "type": "milestone",
+      "created": "2026-04-19T19:15:00-07:00",
+      "urgent": true,
+      "title": "75 HARD program: Apr 20 -> Jul 4 (75 days)",
+      "summary": "Multi-domain founder regimen with hard goals: 100K users, $10K rev, $5M raise, press feature, weight loss, family boundaries, lockstep cofounder execution. Source: https://docs.google.com/document/d/1XuXEW-VzntQNjYlFqwO_QKh1kR5kb7qTqDYhWXYY1QY/edit. Local: /Users/idamo/kai/workspace/files/2026-04-19-75-hard-plan.txt. Cron jobs being fired now.",
+      "requires_action": "Idam must follow daily 6am-9pm regimen + weekly Sunday audit. Kai handles reminders/dashboards/guardrails.",
+      "resolved": null
+    },
+    {
+      "version": 1,
+      "last_updated": "2026-04-15T01:07:29.761341+00:00",
+      "items": [
+        {
+          "id": "mongodb-credit-activation",
+          "type": "blocker",
+          "title": "MongoDB $5K credit activation \u2014 code ready, requires browser login",
+          "detail": "Activation code: ACCELERATOR-PARTNER-5000-F8LXYC\nInstructions: (1) Go to cloud.mongodb.com/v2, (2) Login with idam@kyma.stream (or create account), (3) Navigate to Billing, (4) Click 'Apply Code', (5) Enter code. Browser window opened at cloud.mongodb.com. Acceptance email received Apr 13. Part of startup credits program (reference_startup_credits.md shows $5K-$25K range).",
+          "created": "2026-04-14T08:00:00+00:00",
+          "resolved": null,
+          "urgent": false,
+          "context": "Startup credits \u2014 MongoDB for Startups program. $5K credit for Atlas. Onboarding action item from morning email scan."
+        },
+        {
+          "id": "apolline-birthday-logistics",
+          "type": "alert",
+          "title": "Apolline birthday TOMORROW \u2014 3 orders to place TONIGHT",
+          "detail": "(1) Email orders@rossirovetti.com for flowers by 9 AM to 555 Bryant. (2) DoorDash Arsicault/ONE65 pastries scheduled 8:30 AM. (3) DoorDash Party City balloons scheduled 8:30 AM. Clifford consultation 1 PM PT (reminder job #197). Cotogna dinner confirmed.",
+          "created": "2026-04-09T21:38:19.091247",
+          "resolved": "2026-04-12T01:57:48.844830+00:00",
+          "urgent": true,
+          "context": "Personal \u2014 Apolline turns 28 on April 10"
+        },
+        {
+          "id": "verra-v5-brief-final",
+          "type": "milestone",
+          "title": "Verra 93A Litigation Brief v5 FINAL \u2014 pattern fraud rewrite",
+          "detail": "Complete rewrite from 15p attorney feedback. 7\u21924 claims certainty-first, pattern fraud theory (RealPage/Onesite software), fee-shifting $30K-$125K exposure, institutional settlement pressure. PDF: Telegram + Drive (1Un6J5QcipZS87AmvWBfw59x8PGfjidJK). Supersedes v3/v4. Forward to Gary Allen (617-575-9595). Deposit deadline: Sep 11, 2026.",
+          "created": "2026-04-05T06:10:00Z",
+          "resolved": "2026-04-05T06:10:00Z",
+          "urgent": false,
+          "context": "Legal - Verra 93A. Brief complete and delivered. Ball in Idam court to retain attorney."
+        },
+        {
+          "id": "verra-93a-response-received",
+          "type": "alert",
+          "title": "Verra attorney REJECTED 93A demand - formal response received",
+          "detail": "CONSULTATION COMPLETE. SLG (Nechev) rejected all claims. Key finding: Nechev's central claim ('no issues raised before 93A letter') is provably false \u2014 Apolline's 5:03 PM email (Feb 24) lists ALL issues, and Vinzant responded to each point Feb 27. Lemonade WAS canceled Mar 31 (Idam confirmed). Consultation delivered: claim-by-claim analysis, settlement range $8K-$18K, attorney brief with opposing counsel intel. Next: retain attorney (Heffernan or Clifford), monitor Apr 30 deposit deadline.",
+          "created": "2026-04-04T13:40:00Z",
+          "resolved": "2026-04-04T22:15:00Z",
+          "urgent": false,
+          "context": "Legal - Verra 93A. Consultation delivered. Ball is in Idam's court to retain counsel."
+        },
+        {
+          "id": "mert-lora-training",
+          "type": "milestone",
+          "title": "MERT fine-tuning BLOCKED by objective mismatch - cannot break V8 ceiling",
+          "detail": "CLOSED \u2014 diagnostic no-op confirmed. LoRA on layers 20-23 has zero gradient when extracting from layers 5-6. val_loss identical across 3 epochs. Recovery failed (Modal scope bug + numpy arch mismatch). ~$30 diagnostic cost. V8 (0.7318) is production. Next: Phase 0 human eval (701 pairs ready) to determine if proxy metric is already good enough.",
+          "created": "2026-04-04T08:18:00Z",
+          "resolved": "2026-04-04T20:15:00Z",
+          "urgent": false,
+          "context": "ML pipeline - MERT fine-tuning to break V8 NDCG ceiling. Idam greenlit spend."
+        },
+        {
+          "id": "autonomy-slider-research",
+          "type": "artifact",
+          "title": "Autonomy Slider UX Research complete (316 lines, 20+ sources)",
+          "detail": "Key: Night Owl overnight crate builder = the product (no competitor). Per-domain dials, earned autonomy, undo-as-trust-accelerator. Report: .claude/research-results/2026-04-04-autonomy-slider-ux.md",
+          "created": "2026-04-04T10:25:00Z",
+          "resolved": "2026-04-04T10:25:00Z",
+          "urgent": false,
+          "context": "Product research - Kyma autonomy UX patterns"
+        },
+        {
+          "id": "clerky-post-inc-review",
+          "type": "blocker",
+          "title": "Clerky at Request Signatures \u2014 blocked on Jessica Brodsky (Venturous Counsel) document review",
+          "detail": "RESOLVED \u2014 83(b) managed elections filed for both founders Apr 9. $298 total. Clerky mails to IRS. Share payment ($45 each) still needed.",
+          "created": "2026-04-03T22:20:00Z",
+          "resolved": "2026-04-09T21:38:19.091247",
+          "urgent": false,
+          "context": "Incorporation - Clerky post-inc. External dependency on Venturous Counsel."
+        },
+        {
+          "id": "emily-white-followup",
+          "type": "artifact",
+          "title": "Emily White meeting done \u2014 shared Shibuya TestFlight, wants to stay connected",
+          "detail": "Ex-Spotify for Artists PM (8yr), Music Tech Advisor, Brooklyn. Shared TestFlight for Shibuya (shibuyaaa.com). Phone: 304-941-8118. Substack: emwhitenoise.substack.com. LinkedIn: /in/emwhitenoise. High-value network node for fundraise + product feedback.",
+          "created": "2026-04-03T22:17:00Z",
+          "resolved": null,
+          "urgent": false,
+          "context": "Networking - music tech advisor connection from meeting today"
+        },
+        {
+          "id": "verra-case-folder-complete",
+          "type": "milestone",
+          "title": "Verra Legal Case Folder built at ~/Desktop/Verra-Legal-Case/",
+          "detail": "Attorney-ready folder: CASE-SUMMARY.md, 4 PDFs (93A letter, balance notices, FAS), 12 email threads as text files, Greystar enforcement research ($198M+ settlements). 93A deadline expired today with no settlement offer from Greystar. Still needed: lease copy, move-out photos, USPS tracking, collective demand letter from 23 tenants.",
+          "created": "2026-04-03T15:32:00Z",
+          "resolved": "2026-04-03T15:32:00Z",
+          "urgent": false,
+          "context": "Legal - Verra case preparation for attorney Gary Allen"
+        },
+        {
+          "id": "v8-bridge-integration",
+          "type": "milestone",
+          "title": "V8 neural scorer live in Bridge API (commit 61498ab)",
+          "detail": "6th scoring dimension: neural(0.35 weight). Fixed L2-normalization mismatch. TOOL\u2192TOOL=0.993, Sleep Token=0.916, cross-genre=0.047. Bridge running PID 47424 on :8877.",
+          "created": "2026-04-03T15:12:00Z",
+          "resolved": "2026-04-03T15:12:00Z",
+          "urgent": false,
+          "context": "ML pipeline - V8 production model integrated into Bridge API"
+        },
+        {
+          "id": "mert-finetuning-research",
+          "type": "artifact",
+          "title": "MERT fine-tuning feasibility report + dual-model consultation verdict",
+          "detail": "Dual-model consultation complete (Opus 4.6 + Sonnet 4.5). Both agree: 0.73 is near proxy ceiling, taste fusion architecturally broken, DJ transitions > playlists. Verdict: data quality audit FIRST ($50, 1 week), then multi-task architecture, then MERT fine-tune. Full verdict: files/consult-v8-review-verdict.md. Raw: .playwright-mcp/opus-v8-review.md + sonnet-v8-review.md",
+          "created": "2026-04-03T15:12:00Z",
+          "resolved": "2026-04-03T16:05:00Z",
+          "urgent": false,
+          "context": "ML pipeline - next step after C-16 Phase 2 architecture ceiling"
+        },
+        {
+          "id": "verra-final-account-statement",
+          "type": "alert",
+          "title": "Verra Final Account Statement \u2014 $19,185.23 due",
+          "detail": "Verra FAS $19,185.23. Nechev blanket denial received Apr 4 (one day late). v3 brief FINAL completed + delivered. Attorney README created. Drive folder organized. Ball in Idam court to retain Gary Allen (617-575-9595). Deposit deadline: Sep 11, 2026.",
+          "created": "2026-04-03T14:40:00Z",
+          "resolved": "2026-04-05T08:29:26.826468Z",
+          "urgent": false,
+          "context": "Legal - Verra lease early termination. This is their response to the move-out confirmation. 93A demand letter 30-day deadline expires today."
+        },
+        {
+          "id": "c16-phase2-complete",
+          "type": "milestone",
+          "title": "C-16 Phase 2 Complete \u2014 V8 is production (NDCG@20=0.7318)",
+          "detail": "7 model variants tested overnight. All within \u00b12% of V8. Architecture ceiling at ~0.73. MERT audio features dominate. Taste vectors (ALS vs LightGCN), FAISS negatives, directional modeling, listwise loss all ineffective. Next: MERT fine-tuning (GPU) or ship V8 and build product.",
+          "created": "2026-04-03T14:40:00Z",
+          "resolved": "2026-04-03T14:40:00Z",
+          "urgent": false,
+          "context": "ML pipeline - C-16 Phase 2 experiment pipeline complete"
+        },
+        {
+          "id": "venturous-counsel-meeting-conflict",
+          "type": "alert",
+          "title": "Venturous Counsel call \u2014 completed",
+          "detail": "Call happened. Engagement letter signed 2026-04-02. Michael says Clerky next step imminent, Vanessa following up with partner discount. Cap table decision needed (recommended 10%).",
+          "created": "2026-03-31T17:30:00Z",
+          "resolved": "2026-04-02T17:00:00Z",
+          "urgent": false,
+          "context": "Incorporation - Clerky existing-entity unlock. This call is the gateway to 83(b) elections."
+        },
+        {
+          "id": "93a-response-deadline",
+          "type": "alert",
+          "title": "93A 30-day deadline expires TODAY \u2014 Idam says wait",
+          "detail": "EXPIRED Apr 3. No settlement offer. Nechev sent blanket denial Apr 4. Right to file suit for treble damages.",
+          "created": "2026-03-31T17:30:00Z",
+          "resolved": "2026-04-04T00:00:00Z",
+          "urgent": false,
+          "context": "Legal - Verra 93A litigation. Idam explicitly said no action."
+        },
+        {
+          "id": "civetta-mintz-call-today",
+          "type": "milestone",
+          "title": "Civetta/Mintz startup legal call \u2014 happened today 1pm ET",
+          "detail": "Alexander Civetta (Mintz) met with Apolline (and possibly Idam) today at 1pm ET re: startup legal representation. Apolline initiated via HBS bootcamp connection. Mintz is a major firm with CA offices. Follow up with Apolline for outcome. RESOLVED: Venturous Counsel signed engagement letter 2026-04-02. Mintz/Civetta path superseded.",
+          "created": "2026-03-31T17:30:00Z",
+          "resolved": "2026-04-02T17:00:00Z",
+          "urgent": false,
+          "context": "Incorporation - potential outside counsel for Kyma beyond Venturous Counsel/Clerky"
+        },
+        {
+          "id": "tax-april-15-mega",
+          "type": "alert",
+          "title": "TAX DEADLINE TODAY - Morning briefing sent with 4-step action plan",
+          "detail": "$91,647 owed ($88K federal + $3.5K CA). DEADLINE IS TODAY (April 15).\n\nMORNING BRIEFING SENT (08:00) with exact URLs and steps:\n1. FILE EXTENSION: irs.gov/filing/free-file-do-your-federal-taxes-for-free (confirm Georges filed or self-file)\n2. PAY $500: irs.gov/payments/direct-pay (Balance Due, 2025, screenshot confirmation)\n3. INSTALLMENT AGREEMENT: irs.gov/payments/online-payment-agreement-application (ID.me login, propose $800/month)\n4. Q1 2026 ESTIMATED TAX: Form 1040-ES with $0 payment\n\nNo IRS confirmation emails found in either account. Action required NOW.\n\nVERRA CONSULT: 1:00 PM PT (Zoom: 843 2538 8506 / Passcode: 915998)",
+          "created": "2026-04-13T10:45:00Z",
+          "resolved": null,
+          "urgent": true,
+          "context": "Tax - multiple obligations due same day. Installment plan needed for federal."
+        },
+        {
+          "id": "covered-ca-2026-03-27",
+          "type": "blocker",
+          "title": "Covered CA eligibility notice",
+          "detail": "NEEDS IDAM LOGIN. Notification received 2026-03-27. Reminder sent. You need to log in and respond.",
+          "created": "2026-03-27T00:00:00Z",
+          "resolved": null,
+          "urgent": true,
+          "context": "Personal ops - health insurance"
+        },
+        {
+          "id": "ein-application-overdue",
+          "type": "blocker",
+          "title": "EIN application",
+          "detail": "COMPLETED. EIN 41-5195123 obtained. CP-575 at ~/Downloads/.",
+          "created": "2026-03-27T00:00:00Z",
+          "resolved": "2026-03-30T19:00:00Z",
+          "urgent": false,
+          "context": "Personal ops - business formation."
+        },
+        {
+          "id": "mercury-bank-blocked",
+          "type": "blocker",
+          "title": "Mercury bank account",
+          "detail": "COMPLETED. Account opened at Mercury. 2FA recovery codes saved to Kyma Google Drive.",
+          "created": "2026-03-28T00:00:00Z",
+          "resolved": "2026-03-30T19:00:00Z",
+          "urgent": false,
+          "context": "Personal ops - business banking"
+        },
+        {
+          "id": "exp010-mert-scale",
+          "type": "milestone",
+          "title": "V4+V5 RETRAIN \u2014 v3 confirmed as ceiling (F1=0.9415)",
+          "detail": "V4: F1=0.9294 (curated noise). V5: F1=0.9394 (curated removed, +0.01 recovery). 8x MERT coverage didn't beat v3. Training signal is the ceiling. v3 remains production.",
+          "created": "2026-03-29T10:00:00Z",
+          "resolved": "2026-03-30T13:15:00Z",
+          "urgent": false,
+          "context": "ML pipeline"
+        },
+        {
+          "id": "lastfm-api-key",
+          "type": "blocker",
+          "title": "Last.fm API key needed",
+          "detail": "RESOLVED. API key obtained.",
+          "created": "2026-03-29T08:00:00Z",
+          "resolved": "2026-03-29T17:35:00-07:00",
+          "urgent": false,
+          "context": "Data pipeline"
+        },
+        {
+          "id": "experiment0-user-testing",
+          "type": "decision",
+          "title": "Experiment 0: Test with 10-15 people",
+          "detail": "CLI tool fully wired with mashups, Last.fm, agent narrative. Ready to test.",
+          "created": "2026-03-29T12:00:00Z",
+          "resolved": null,
+          "urgent": false,
+          "context": "Product validation"
+        },
+        {
+          "id": "c12-5-expert-panel",
+          "type": "artifact",
+          "title": "C-12.5 Expert Panel \u2014 5 experts evaluated Taste DNA",
+          "detail": "File: files/consultation-C12.5-expert-panel.md",
+          "created": "2026-03-30T06:45:00Z",
+          "resolved": "2026-04-05T08:29:26.826468Z",
+          "urgent": false,
+          "context": "Product strategy"
+        },
+        {
+          "id": "enable-extra-usage",
+          "type": "decision",
+          "title": "Enable Extra Usage on Max plan (prevents Kai downtime)",
+          "detail": "2 min action: Settings > Usage > Enable Extra Usage.",
+          "created": "2026-03-30T08:35:00Z",
+          "resolved": "2026-04-05T08:29:26.826468Z",
+          "urgent": false,
+          "context": "Infrastructure - Kai resilience"
+        },
+        {
+          "id": "ingestors-died-silently",
+          "type": "alert",
+          "title": "Ingestors restarted \u2014 all 4 running",
+          "detail": "All restarted 2026-04-02. Last.fm PID 61840 (48.4M scrobbles), ListenBrainz PID 61872 (30.9M), Mixcloud PID 62550 (fresh discovery), Discogs PID 62236. Total: 79.6M raw transitions.",
+          "created": "2026-03-31T17:30:00Z",
+          "resolved": "2026-04-02T18:10:00Z",
+          "urgent": false,
+          "context": "Data pipeline - curated transitions"
+        },
+        {
+          "id": "v6-v7-ranking-complete",
+          "type": "milestone",
+          "title": "MODEL-002 ranking experiments complete \u2014 V6 BPR is production",
+          "detail": "V6 BPR: NDCG@20=0.7198 (+716% over baseline). V7 ApproxNDCG: 0.7057 (-2% vs V6, 11.6x slower). Decision: pairwise BPR is optimal at this scale. Next: integrate V6 rankings into Bridge + graph walks. Focus product, not models.",
+          "created": "2026-04-02T02:45:00Z",
+          "resolved": "2026-04-02T02:45:00Z",
+          "urgent": false,
+          "context": "ML pipeline - ranking model selection"
+        },
+        {
+          "id": "apolline-kyma-shared-drive",
+          "type": "milestone",
+          "title": "Apolline created Kyma shared drive on Google Workspace",
+          "detail": "Apolline set up a shared drive 'Kyma' on kyma.stream workspace and added idam@kyma.stream as manager. Also shared a 'Lawyer chat' doc for the Civetta/Mintz call prep.",
+          "created": "2026-03-31T17:30:00Z",
+          "resolved": "2026-03-31T17:30:00Z",
+          "urgent": false,
+          "context": "Corporate setup"
+        },
+        {
+          "id": "lemonade-cancellation-verify",
+          "type": "blocker",
+          "title": "Lemonade renters insurance \u2014 cancellation NOT confirmed",
+          "detail": "CORRECTION: Lemonade WAS canceled March 31 (Idam confirmed). Earlier Playwright check showed active policies but Idam says they were canceled same day as move-out. Nechev's letter raises this as lease violation. Consultation assessment: talking point, not game-changer \u2014 empty unit has no insurable risk.",
+          "created": "2026-04-03T01:55:00Z",
+          "resolved": "2026-04-04T22:15:00Z",
+          "urgent": false,
+          "context": "Personal ops - renters insurance. Canceled Mar 31 per Idam. Used by Verra as defense point."
+        },
+        {
+          "id": "tax-installment-plan",
+          "type": "artifact",
+          "title": "Tax installment action plan ready \u2014 10 days to April 15",
+          "detail": "Action plan at files/tax-installment-action-plan.md. 10 DAYS to April 15. Step 1: confirm extension + pay $500 + call IRS. Step 2: evaluate CNC/OIC. With agreement: penalty drops 0.5%->0.25%/mo.",
+          "created": "2026-04-05T07:25:00Z",
+          "resolved": null,
+          "urgent": true,
+          "context": "Tax - $88K federal debt. Installment agreement needed before April 15."
+        },
+        {
+          "id": "taste-dna-mvp-complete",
+          "type": "milestone",
+          "title": "Taste DNA MVP \u2014 working end-to-end (taste_dna.py)",
+          "detail": "Full pipeline validated: Last.fm username \u2192 Spotify matching (87% on 256M catalog) \u2192 43,424 Leiden community mapping \u2192 diversity scoring \u2192 sonic signature \u2192 bridge expeditions. Tested on rj (Last.fm founder, 500 tracks). Committed e918d0a to kyma-engine. Next: web endpoint on kyma.stream + shareable URL + visual card.",
+          "created": "2026-04-06T08:00:00Z",
+          "resolved": "2026-04-06T08:00:00Z",
+          "urgent": false,
+          "context": "Taste Oracle Phase 1 \u2014 consultation verdict #1 priority."
+        },
+        {
+          "id": "account-migration-auth-blocker",
+          "type": "blocker",
+          "title": "Supabase migration approach changed: ownership transfer instead of import",
+          "detail": "RESOLVED: Import approach (900MB pg_dump) replaced with simpler ownership transfer. User will add idam@kyma.stream to existing Supabase project owned by emmanuel.obiahu@gmail.com, then transfer ownership. No password reset needed, no data migration, preserves all config.",
+          "created": "2026-04-12T18:29:58.697020+00:00",
+          "resolved": "2026-04-13T14:14:19.652791+00:00",
+          "urgent": false,
+          "context": "Infrastructure - migrating personal accounts to idam@kyma.stream + Mercury card. Automation blocked by OAuth flows designed to prevent automation."
+        },
+        {
+          "id": "github-org-captcha-blocker",
+          "type": "blocker",
+          "title": "GitHub organization creation BLOCKED: CAPTCHA verification required",
+          "detail": "Organization setup at final step. Form accessible at github.com/account/organizations/new?plan=free. Fields ready: name=kyma-computer, email=idam@kyma.stream, type=Business. BLOCKER: iframe CAPTCHA (\"Please solve this puzzle so we know you are a real person\") appears when clicking any field. Must be solved by human - cannot be automated. Once solved, accept ToS and click Next to complete.",
+          "created": "2026-04-12T21:21:01.599710+00:00",
+          "resolved": null,
+          "urgent": false,
+          "context": "Infrastructure - migrating developer accounts to business. GitHub org creation for Kyma Computer, Inc."
+        },
+        {
+          "id": "modal-billing-mercury-card",
+          "type": "blocker",
+          "title": "Modal billing BLOCKED: requires manual Mercury card entry",
+          "detail": "Modal account email already migrated to idam@kyma.stream \u2705. Current plan: Starter ($5 credits/month, $0.44 used). No payment method on file. Adding card unlocks $25 additional credits (total $30). $0.50 verification fee (refunded). BLOCKER: Stripe payment portal requires manual card entry (number, expiry, CVV). URL ready: modal.com/settings/idam/usage \u2192 Add a Payment Method button. Mercury card details in MEMORY-PRIVATE.md.",
+          "created": "2026-04-12T21:32:00.000000+00:00",
+          "resolved": null,
+          "urgent": false,
+          "context": "Infrastructure - Modal account migration. Email done, billing requires user action."
+        },
+        {
+          "id": "google-cloud-migration",
+          "type": "blocker",
+          "title": "Google Cloud BLOCKED: No billing account, still on personal email",
+          "detail": "Project kyma-production (#341611746447) exists but: (1) No billing account attached, (2) Using emmanuel.obiahu@gmail.com not idam@kyma.stream. Requires: GCP Organization setup for kyma.stream \u2192 Create billing account with Mercury card \u2022\u2022\u2022\u20223200 \u2192 Link project to billing \u2192 Transfer ownership. Most complex migration of all services. URL: console.cloud.google.com/billing?project=kyma-production",
+          "created": "2026-04-12T21:44:55.127238+00:00",
+          "resolved": null,
+          "urgent": true,
+          "context": "Infrastructure - Only service still on personal email. Project may have disabled services due to no billing."
+        },
+        {
+          "id": "posthog-401-errors",
+          "type": "blocker",
+          "title": "PostHog migration BLOCKED: 401 errors despite correct API key",
+          "detail": "Business account key (phc_xVUjRFSpQhg9oQj5Jn7Yg2kKmtDa9kxTUfhNyfT34GZo) deployed to Vercel and loading on kyma.stream, but API returns 401 \"invalid or expired\". Autocapture enabled in dashboard (was OFF). window.posthog never initializes. PostHog account requires re-authentication to access org settings. Possible causes: (1) account verification issue, (2) key needs regeneration, (3) project configuration problem. Verified via browser: navigated to kyma.stream, waited 5s, still undefined + 401 errors in console.",
+          "created": "2026-04-12T22:49:29.504492+00:00",
+          "resolved": null,
+          "urgent": true,
+          "context": "Infrastructure - PostHog analytics migration from personal to business account. Migration incomplete."
+        },
+        {
+          "id": "supabase-invitation-sent",
+          "type": "milestone",
+          "title": "Supabase team invitation sent \u2014 Step 1/3 complete, monitoring for acceptance",
+          "detail": "COMPLETED: User accepted invitation manually. Job #205 deleted. Ownership transfer complete or in progress.",
+          "created": "2026-04-13T15:06:59.841285+00:00",
+          "resolved": "2026-04-13T16:02:41.705166+00:00",
+          "urgent": false,
+          "context": "Infrastructure - Supabase ownership transfer. Step 1 automated, Steps 2-3 pending."
+        },
+        {
+          "id": "exp-r01-5-eval-gap",
+          "type": "decision",
+          "title": "EXP-R01.5 Per-Stem BT completed \u2014 test evaluation stubbed, 100 models untested",
+          "detail": "Medium mode ran 7 hours, trained 100 models (4 stems \u00d7 25 layers), 11,352 valid pairs. ALL models show test_acc=0 because test evaluation was never implemented (line 284: stub comment). Cannot determine which stem-layer combos predict preferences. Decision needed: (A) Implement eval script + test existing 100 models (~30 min), (B) Re-run experiment with eval built in (~7 hours), or (C) Abandon per-stem hypothesis. Expected: vocals=zero, other/texture dominates (prior stem-ablation \u03c1=0.214). Target: beat DeepPref 0.4600 by 3+ pp. Models saved: kyma-engine/work/outputs/exp_r01_5_per_stem/",
+          "created": "2026-04-13T22:20:15.242300+00:00",
+          "resolved": null,
+          "urgent": false,
+          "context": "Research \u2014 EXP-R01.5 experiment complete but inconclusive. Needs eval implementation or decision to move on."
+        }
+      ]
+    },
+    {
+      "id": "apify-token-for-external-brain",
+      "type": "blocker",
+      "title": "APIFY_TOKEN needed for External Brain TikTok/IG/App-Review harvest",
+      "body": "Apify ingester is built and tested. Blocked on token. Add APIFY_TOKEN=... to /Users/idamo/kai/.env (the anthropic client reads from there). Then run: cd /Users/idamo/code/kyma-external-brain && python3 -m ingest.apify --all",
+      "urgent": true,
+      "created": "2026-04-17T00:00:00Z",
+      "resolved": null
+    },
+    {
+      "id": "a16z-sr007-decision-fork-2026-04-21",
+      "type": "decision",
+      "created": "2026-04-21T16:39:23-07:00",
+      "resolved": null,
+      "urgent": false,
+      "title": "a16z Speedrun SR007 - Andrew Chen personal follow-up, deadline May 17",
+      "body": "Andrew Chen (GP, a16z) emailed directly Apr 21: 'top 5% of applicants last round' + SR007 applications open at speedrun007.a16z.com/e2. Deadline May 17. Program: July 27-Oct 11 in SF. Current TASKS.md stance: 'not applying yet, product/vision still figuring out'. 2026-04-17 Bridge consult verdict left open: 'apply-with-Bridge-data OR withdraw-and-target-SR008'. Email forces the decision. Bridge kill window closes ~May 5 (14 days post-seed) - would have engagement data by May 17. Decision: (a) apply SR007 with whatever Bridge data exists May 17, (b) withdraw and target SR008, (c) apply with current pitch decks and iterate. Gmail msg id: 19db0590ce0332cc."
+    },
+    {
+      "id": "medvidi-rx-ticket-filed-2026-04-21",
+      "type": "milestone",
+      "created": "2026-04-21T16:39:23-07:00",
+      "resolved": null,
+      "urgent": false,
+      "title": "MEDvidi pharmacy-issue ticket filed - Rx re-routing to Walgreens #01297",
+      "body": "Filed via Playwright (portal form at https://medvidi.us/Q7GoVje8oh). Issue: 'Pharmacy hasn't received the prescription'. Target: Walgreens #01297 (670 4th St SF). Confirmation screen: 'Mutiat Olawunmi's assistant is on it. SMS coming when Rx lands.' Job 224 auto-follow-up scheduled for 2026-04-22 ~14:30 PT. If no SMS by then, escalation email to team@medvidi.com is pre-drafted at files/medvidi-escalation-draft-2026-04-21.txt awaiting 'send it'. Screenshot: medvidi-report-submitted-2026-04-21.png"
+    },
+    {
+      "id": "medvidi-next-appointment-unscheduled-2026-04-21",
+      "type": "blocker",
+      "created": "2026-04-21T16:39:23-07:00",
+      "resolved": null,
+      "urgent": false,
+      "title": "MEDvidi follow-up appointment still unscheduled",
+      "body": "Portal shows next Mental Health ADHD appointment in 'Booking' status (unconfirmed). Apr 18 email from MEDvidi prompted Idam to schedule. Book at https://join.medvidi.com/appointment/?autoSignInEmail=emmanuel.obiahu@gmail.com. The Rx-fill block should not gate on this, but MEDvidi's compliance workflow may escalate faster with an appointment on the books."
+    },
+    {
+      "id": "medical-rx-portal-misrouted-2026-04-21",
+      "type": "question",
+      "created": "2026-04-21T16:39:23-07:00",
+      "resolved": "2026-04-21T16:53:33-07:00",
+      "urgent": false,
+      "title": "Medi-Cal Rx enrollment email - likely misrouted since Idam is Anthem",
+      "body": "Apr 16 received 'Welcome to Medi-Cal Rx Beneficiary Portal' email from Prime Therapeutics. Idam's insurance is Anthem Blue Cross PPO (Member ID JPU099M91022), not Medi-Cal. Did MEDvidi submit Rx to wrong payer? Check with MEDvidi whether Anthem BCBS is on file as primary insurance for the Lisdexamfetamine prescription - wrong payer billing would explain multiple pharmacy rejections.",
+      "resolution_note": "Not misrouted. Idam IS enrolled in Medi-Cal (BIC card shown Apr 21: 97918535H16086, issued 03/27/2026). Welcome email Apr 16 was legitimate. Flipped diagnosis: MEDvidi pharmacy rejections likely driven by Medi-Cal Rx PA requirements, not generic pharmacy compliance. Mutiat's '12-day compliance delay' may actually be PA paperwork stuck at MEDvidi. New MEDvidi ticket being prepared with prescriber-refused-to-send framing + explicit Medi-Cal PA callout."
+    },
+    {
+      "id": "walgreens-recall-call-2026-04-21",
+      "type": "blocker",
+      "created": "2026-04-21T17:01:23-07:00",
+      "resolved": null,
+      "urgent": true,
+      "title": "Call Walgreens #01297 back and get verbatim return reason",
+      "body": "(415) 856-0543. Get pharmacist name. Confirm if Rx was returned and when, whether they'll fill a new one pre-attached with ICD-10 F90 + monitoring plan + callback line, and whether they have stock of generic OR Vyvanse. Script at files/medvidi-call-scripts/01-walgreens-recall.txt."
+    },
+    {
+      "id": "medvidi-supervisor-call-2026-04-21",
+      "type": "blocker",
+      "created": "2026-04-21T17:01:23-07:00",
+      "resolved": null,
+      "urgent": true,
+      "title": "Call MEDvidi pharmacy escalation line (504) 414-5095 - demand supervisor",
+      "body": "Reference ticket 56379 closure error. Force specific mechanism (prescriber page, supervisor intervention, pre-attached Rx notes). Ask for Medi-Cal PA tracking number + supervisor name + transmission ETA. Script at files/medvidi-call-scripts/02-medvidi-supervisor.txt."
+    },
+    {
+      "id": "backup-pharmacy-stock-check-2026-04-21",
+      "type": "blocker",
+      "created": "2026-04-21T17:01:23-07:00",
+      "resolved": false,
+      "urgent": true,
+      "title": "Parallel call Costco #144 and Safeway #2606 for stock check",
+      "body": "Costco Pharmacy #144 (415) 437-2620, Safeway #2606 (415) 633-1020. Verify: generic lisdexamfetamine AND/OR brand Vyvanse stock, telehealth C-II acceptance policy, what they need for no-hold fill, ETA. Whichever is cleaner becomes Plan B in MEDvidi message. Script at files/medvidi-call-scripts/03-backup-pharmacy-stock-check.txt."
+    },
+    {
+      "id": "activation-quality-calibration-blocked-2026-04-21",
+      "type": "blocker",
+      "created": "2026-04-21T17:17:06-07:00",
+      "resolved": null,
+      "urgent": false,
+      "title": "Activation-quality calibration blocked: raw battery v2 JSON cleared from /tmp",
+      "body": "The raw sources_cited/activation-rank pairs required for Spearman correlation were in /tmp/brain_ab_results/battery-v2-aug-20260417-054618.json, which cleared. Re-running battery v2 (files/consultations/2026-04-17-brain-memory-followup/battery_v2_augmented.py or unified_battery.py) costs ~15 claude-opus-4-5 calls = $5-10, which crosses the autonomous-spend gate (>$5). Need Idam's explicit go-ahead to re-run, OR port the battery outputs that still exist in battery_v2_blind_grading.md into a simpler coarse-grained metric (qualitative PASS/FAIL vs citation count) that doesn't need the raw JSON. Blind-grading file is structured 5 queries x 3 conditions = 15 datapoints but those are quality assessments, not raw sources_cited counts."
+    },
+    {
+      "id": "hook-ios-install-self-test-2026-04-22",
+      "type": "blocker",
+      "title": "Install Hook iOS app + 20min self-test",
+      "description": "Action 1 from DJ 5th-player position memo. Requires iPhone + iOS 18+. Verify catalog depth, creation UX, v2.0.2 Feed/Jams/Explore/Studio surfaces. App Store ID 6476193312. Cannot do on server - physical device required.",
+      "urgent": false,
+      "created": "2026-04-22T05:50:02Z",
+      "resolved": null
+    },
+    {
+      "id": "sr007-posture-decision-2026-05-10",
+      "type": "decision",
+      "title": "SR007 apply-or-skip decision by May 10",
+      "description": "Both consult models said DO NOT apply this week with a widget. Apply in Week 4 with 'structured research on emerging player class, Bridge is v0 wedge, 90-day thesis-commit plan' angle, OR skip to SR008. Job 226 reminder scheduled.",
+      "urgent": true,
+      "created": "2026-04-22T05:50:02Z",
+      "resolved": null
+    },
+    {
+      "id": "dj-5th-player-path-commitment-2026-05-05",
+      "type": "decision",
+      "title": "Path A/B/C/D commitment after shadowing sprint",
+      "description": "After Idam shadows 10 SF curators (~2 weeks), commit to Path A (Substack-for-curators), B (producer-adjacent), C (B2B taste-attribution infra, judge bet at 65%), or D (distributed scene). Decision criteria in position-memo.md section 'Action 2'.",
+      "urgent": false,
+      "created": "2026-04-22T05:50:02Z",
+      "resolved": null
+    },
+    {
+      "id": "walgreens-rx-insurance-call-2026-04-22",
+      "type": "blocker",
+      "urgent": true,
+      "title": "Call Walgreens 415-856-0543 re Rx insurance issue",
+      "context": "Walgreens email 08:50 PT flagged insurance problem. Idam call needed. Have Medi-Cal BIC 97918535H16086 ready. Diagnostic question: 'insurance not on file' (pharmacy fix) vs 'prior auth required' (MEDvidi prescriber fix, 504-414-5095).",
+      "created": "2026-04-22T16:00:14.510478+00:00",
+      "resolved": null
+    }
+  ]
+}
