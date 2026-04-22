@@ -510,9 +510,10 @@
       "type": "blocker",
       "urgent": true,
       "title": "Call Walgreens 415-856-0543 re Rx insurance issue",
-      "context": "Walgreens email 08:50 PT flagged insurance problem. Idam call needed. Have Medi-Cal BIC 97918535H16086 ready. Diagnostic question: 'insurance not on file' (pharmacy fix) vs 'prior auth required' (MEDvidi prescriber fix, 504-414-5095).",
+      "context": "UPDATED 2026-04-22 10:20 via autonomous evidence deduction. High-probability diagnosis: MISSING-INSURANCE (not PA). Evidence: (1) prior Walgreens Rx from One Medical May 22 2025 and Wisp Dec 2025 \u2014 Walgreens has pre-Medi-Cal insurance on file; (2) Idam's Medi-Cal BIC 97918535H16086 issued only 2026-03-27, 26 days ago \u2014 no evidence he ever updated Walgreens with it; (3) today's Rx transmission is first successful upstream-clear Rx reaching Walgreens insurance adjudication since BIC issuance. Action: call 415-856-0543, give new Medi-Cal BIC 97918535H16086, legal name IDAM Emmanuel Obiahu. PA concern is downstream \u2014 only relevant if Medi-Cal rejects AFTER BIC update.",
       "created": "2026-04-22T16:00:14.510478+00:00",
-      "resolved": null
+      "resolved": null,
+      "updated": "2026-04-22T17:17:55.286481+00:00"
     }
   ]
 }
