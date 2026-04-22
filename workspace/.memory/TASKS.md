@@ -160,15 +160,11 @@ Both Opus 4.7 and Sonnet 4.5 independently reached the same conclusion: **Bridge
 
 ## Current Focus (updated 2026-04-20 01:05 PDT)
 
-### Bridge Referer Telemetry ⚠️ VERIFICATION BLOCKED
-**Status:** Code complete, verification blocked on external drive mount
-**What:** Stats endpoint (/api/bridge/stats) returns referer data grouped by domain
-**Progress:**
-- [x] Code reviewed — all 4 components verified (table, record method, stats aggregation, header capture)
-- [x] Test script passes — domain extraction logic matches bridge.py implementation  
-- [ ] Live verification BLOCKED — server won't start without /Volumes/Kyma/spotify-metadata/spotify_clean.sqlite3
-**Next:** Mount external drive OR modify bridge.py to make Spotify DB optional for testing
-**Artifacts:** /tmp/test_referer_parsing.py (6/6 tests pass), daily log 2026-04-20 § 05:00
+### Bridge Referer Telemetry ✅ COMPLETE (2026-04-22 03:20 PDT)
+**Status:** Shipped in kyma-engine commit `65138be`. Spotify DB made optional; server starts without external drive mount and serves from 99,971-track in-memory cache. Referer telemetry (bridge_referers table + record_referer + /api/bridge/stats aggregation) now runs in both drive-mounted and drive-unmounted states.
+**[OBSERVED]:** Smoke test with SPOTIFY_DB='/nonexistent/...' — load() completes cleanly, spotify_conn=None, cache-miss resolves return None gracefully, cache-hit paths work via in-memory lookup, search_tracks unchanged. Regression with DB mounted — spotify_conn set as before, slow-path resolves through DB.
+**Log:** daily log 2026-04-22 § 03:20 [COMPLETED]
+**Unblocks:** contrast-vs-overlap Bridge A/B pilot (needs referer counts for curator re-share measurement).
 
 ### KYMA BRIDGE — Embeddable 12s Mashup Widget (TOP PRIORITY)
 **Decision:** Dual-model consultation (Opus 4.6 + Sonnet 4.5, 2026-04-11) converged: ship Bridge.
