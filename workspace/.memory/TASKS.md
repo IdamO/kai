@@ -399,39 +399,11 @@ If Sunday synthesis output is indistinguishable from "top of r/indieheads this w
 
 ---
 
-## Queued — External Culture-Intelligence Brain Architecture Consult (requested 2026-04-17 12:28 PT)
+## 🪦 Queued — External Culture-Intelligence Brain Architecture Consult — KILLED 2026-04-22
 
-**Request (Idam verbatim):** "you didnt do a repo consultation with claude on how to do the research stuff so we can create this external brain that is constantly ingesting tiktok, reddit, substack, youtube and other music/culture/tech sources that could then allow us to find these weird corellations and match them to our own internal brain (the external and internal brain shiould be separate) and should use the karpathy style auto-research to reinforce what to try and also explore edge nodes etc. I want to make this a big atchitectural pipeline that runs frequently like daily or something and draws connections between what people are taling about etc so we see weird relationships between like this one reddit post/sentiment and this ticktok video and our idea and the industry and fashio etc... an idea engine with stigmergy with differet modular inoput sources with full piupleine architecutres etc that an llm cna crawl and get amazing insight on what to build whoi to target what it looks like its like getting real customer feedback without asking users or being able to take what they are saying, map to our vision and see where they overlap"
+**Status:** KILLED. This consult was queued 2026-04-17 12:28 PT to architect the external-brain pipeline. The project it would have architected was itself KILLED on 2026-04-21 by founder verdict (trend-piece slop output, readlist didn't rescue — see § 🪦 EXTERNAL BRAIN — KILLED below and MEMORY.md § "Kyma External Brain — KILLED 2026-04-21"). Architecting a killed project is a waste of a consult. Entry retained as history only.
 
-**Scope:**
-- SEPARATE external brain (culture signal) from internal brain (Kyma strategy/research/experiments/notion/voice memos/daily logs)
-- Modular ingestion: TikTok, Reddit, Substack, YouTube, + fashion/tech/music-industry sources (music press, RateYourMusic, Hypebeast, TechCrunch, podcasts, Trend reports, etc.)
-- Daily+ cadence
-- Karpathy auto-research: reinforce what works, explore edge nodes (exploration/exploitation balance)
-- Stigmergy: modules communicate via shared artifacts
-- Cross-correlation: find "weird relationships" between external sources AND internal brain
-- LLM-crawlable query surface: "what to build / who to target / what it looks like"
-- Goal: passive ethnographic feedback, map to Kyma vision, see overlaps
-
-**Pre-work:**
-1. Consult prompt staged at: kyma-ideation/03-consults/2026-04-17-external-brain/00-prompt.md (drafting now)
-2. Run Opus 4.7 + Sonnet 4.5 in Cognitive Amplifier project
-3. Blind judge synthesis
-4. Write architectural blueprint + 30-day MVP plan + full tech stack recommendation
-
-**Explicit directives to consultants:**
-- Full architectural blueprint NOT advice
-- Ingestion strategy per source (APIs/scraping/rate limits/freshness)
-- Embedding + correlation engine design (pgvector? FAISS? Weaviate? hybrid?)
-- Karpathy loop implementation (metric, reward, exploration schedule)
-- Stigmergic module communication protocol
-- Cost budget at pilot + scale
-- LLM query interface spec
-- 30/60/90 day rollout
-
-**Priority:** This is ahead of CLAUDE.md upgrade consult (also queued). External brain has architectural dependencies that need decision before coding starts.
-
-**Status:** PENDING (prompt drafting 2026-04-17 12:30 PT)
+**If the external-brain need returns in a different form** (e.g., demographic-behavioral-claim extractor per 2026-04-21 kill-note pattern), open a NEW consult queue entry scoped to the specific new requirement — do NOT resurrect this generic "architect the pipeline" framing which already failed once.
 
 ## 🪦 EXTERNAL BRAIN — KILLED 2026-04-21
 Founder verdict: output was trend-piece slop, readlist didn't rescue. Kill criterion cleared (synthesis indistinguishable from r/indieheads top-of-week). Job 216 cron deleted. Source + data preserved at /Users/idamo/code/kyma-external-brain/ for one-shot queries. No recurring ingest/synthesis.

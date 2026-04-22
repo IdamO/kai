@@ -57,6 +57,9 @@
 - [ ] **[P2] Per-dimension contrast taxonomy** — rhythmic (BPM gap >= 20) vs timbral (spectral centroid) vs emotional (valence gap) vs structural (song-form mismatch). Which dimension produces the best FlavorGraph-East-Asian analog in music? (QUEUED)
 - [ ] **[P3] ISMIR 2026 short paper** — if contrast-vs-overlap pilot produces any signal, publish as "First empirical test of the FlavorGraph East-Asian-contrast hypothesis in music recommendation." Strategic fundraise benefit: MIR credential. (QUEUED, post-pilot only)
 
+
+- [ ] **[P2] Auto-continuation task picker defect** — 2026-04-22: the periodic-refresh auto-picker offered the deferred arxiv-preprint task despite its own description saying "do NOT auto-pick during Apr 18–May 17 window." Picker should filter on DEFERRED/BLOCKED/kill-list markers before offering. Same class of bug as Task Puller #212 might have (check its prompt at .claude/task-puller-prompt.md). Add a marker-regex filter: grep for "DEFERRED|do NOT auto-pick|BLOCKED|KILLED" in candidate task body, skip if matched. (QUEUED)
+
 ## Completed Research
 <!-- Move here when done, with link to results file -->
 
