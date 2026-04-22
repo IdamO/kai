@@ -1,0 +1,31 @@
+TO: team@medvidi.com
+CC: idam@kyma.stream
+SUBJECT: Urgent - Medi-Cal Rx prior authorization needed for Lisdexamfetamine Dimesylate 30MG - Walgreens #01297
+
+---
+
+Hi MEDvidi team,
+
+Following up on the Lisdexamfetamine Dimesylate 30MG prescription that Dr. Mutiat Olawunmi transmitted to Walgreens #01297 (670 4th St, San Francisco, CA) on 2026-04-22 at 06:41 PT.
+
+Walgreens notified me at 08:50 PT that the prescription is delayed due to an insurance issue. I called them at 415-856-0543 and confirmed the block is a **Medi-Cal Rx prior authorization requirement**, not missing insurance on file (they have my BIC 97918535H16086 from the new Medi-Cal plan issued 2026-03-27).
+
+Medi-Cal Rx has prior-authorization requirements for Schedule II stimulants in California. I need Dr. Olawunmi to submit a PA to Medi-Cal Rx (administered by Prime Therapeutics) with the following:
+
+- Patient: IDAM Emmanuel Obiahu
+- DOB: [REDACTED - on file]
+- Medi-Cal BIC: 97918535H16086
+- Rx: Lisdexamfetamine Dimesylate 30MG
+- Diagnosis: F90.1 (ADHD, combined presentation - per chart)
+- Monitoring plan: already documented in chart (BP/HR/weight)
+- Pharmacy: Walgreens #01297 NPI [REDACTED]
+
+This is a Schedule II medication and I have been waiting through multiple pharmacy blocks (Alto formulary refusal 2026-04-16; Walgreens verification timeout 2026-04-17-20; today's insurance adjudication block). I need this PA filed by end of day today so Walgreens can complete adjudication.
+
+Please confirm when the PA is filed, and please provide the PA authorization number once approved so I can relay to Walgreens if they need it.
+
+If there are any barriers to filing the PA (chart gaps, documentation, provider availability), please call me at [Idam phone] immediately.
+
+Thank you,
+Idam Obiahu
+idam@kyma.stream
