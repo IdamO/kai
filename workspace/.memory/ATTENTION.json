@@ -4,11 +4,12 @@
       "id": "kyma-75-hard-program-2026-04-20",
       "type": "milestone",
       "created": "2026-04-19T19:15:00-07:00",
-      "urgent": true,
+      "urgent": false,
       "title": "75 HARD program: Apr 20 -> Jul 4 (75 days)",
       "summary": "Multi-domain founder regimen with hard goals: 100K users, $10K rev, $5M raise, press feature, weight loss, family boundaries, lockstep cofounder execution. Source: https://docs.google.com/document/d/1XuXEW-VzntQNjYlFqwO_QKh1kR5kb7qTqDYhWXYY1QY/edit. Local: /Users/idamo/kai/workspace/files/2026-04-19-75-hard-plan.txt. Cron jobs being fired now.",
       "requires_action": "Idam must follow daily 6am-9pm regimen + weekly Sunday audit. Kai handles reminders/dashboards/guardrails.",
-      "resolved": null
+      "resolved": "2026-04-28T20:15:00-07:00",
+      "resolution_note": "Cleared by Idam 2026-04-28: explicit \"clear all these\" on standing-items list."
     },
     {
       "version": 1,
@@ -90,9 +91,10 @@
           "title": "Emily White meeting done \u2014 shared Shibuya TestFlight, wants to stay connected",
           "detail": "Ex-Spotify for Artists PM (8yr), Music Tech Advisor, Brooklyn. Shared TestFlight for Shibuya (shibuyaaa.com). Phone: 304-941-8118. Substack: emwhitenoise.substack.com. LinkedIn: /in/emwhitenoise. High-value network node for fundraise + product feedback.",
           "created": "2026-04-03T22:17:00Z",
-          "resolved": null,
+          "resolved": "2026-04-28T20:15:00-07:00",
           "urgent": false,
-          "context": "Networking - music tech advisor connection from meeting today"
+          "context": "Networking - music tech advisor connection from meeting today",
+          "resolution_note": "Cleared by Idam 2026-04-28: explicit \"clear all these\" on standing-items list."
         },
         {
           "id": "verra-case-folder-complete",
@@ -409,10 +411,11 @@
       "id": "a16z-sr007-decision-fork-2026-04-21",
       "type": "decision",
       "created": "2026-04-21T16:39:23-07:00",
-      "resolved": null,
+      "resolved": "2026-04-28T20:15:00-07:00",
       "urgent": false,
       "title": "a16z Speedrun SR007 - Andrew Chen personal follow-up, deadline May 17",
-      "body": "Andrew Chen (GP, a16z) emailed directly Apr 21: 'top 5% of applicants last round' + SR007 applications open at speedrun007.a16z.com/e2. Deadline May 17. Program: July 27-Oct 11 in SF. Current TASKS.md stance: 'not applying yet, product/vision still figuring out'. 2026-04-17 Bridge consult verdict left open: 'apply-with-Bridge-data OR withdraw-and-target-SR008'. Email forces the decision. Bridge kill window closes ~May 5 (14 days post-seed) - would have engagement data by May 17. Decision: (a) apply SR007 with whatever Bridge data exists May 17, (b) withdraw and target SR008, (c) apply with current pitch decks and iterate. Gmail msg id: 19db0590ce0332cc."
+      "body": "Andrew Chen (GP, a16z) emailed directly Apr 21: 'top 5% of applicants last round' + SR007 applications open at speedrun007.a16z.com/e2. Deadline May 17. Program: July 27-Oct 11 in SF. Current TASKS.md stance: 'not applying yet, product/vision still figuring out'. 2026-04-17 Bridge consult verdict left open: 'apply-with-Bridge-data OR withdraw-and-target-SR008'. Email forces the decision. Bridge kill window closes ~May 5 (14 days post-seed) - would have engagement data by May 17. Decision: (a) apply SR007 with whatever Bridge data exists May 17, (b) withdraw and target SR008, (c) apply with current pitch decks and iterate. Gmail msg id: 19db0590ce0332cc.",
+      "resolution_note": "Cleared by Idam 2026-04-28: explicit \"clear all these\" on standing-items list."
     },
     {
       "id": "medvidi-rx-ticket-filed-2026-04-21",
@@ -485,16 +488,18 @@
       "description": "Action 1 from DJ 5th-player position memo. Requires iPhone + iOS 18+. Verify catalog depth, creation UX, v2.0.2 Feed/Jams/Explore/Studio surfaces. App Store ID 6476193312. Cannot do on server - physical device required.",
       "urgent": false,
       "created": "2026-04-22T05:50:02Z",
-      "resolved": null
+      "resolved": "2026-04-28T20:15:00-07:00",
+      "resolution_note": "Cleared by Idam 2026-04-28: explicit \"clear all these\" on standing-items list."
     },
     {
       "id": "sr007-posture-decision-2026-05-10",
       "type": "decision",
       "title": "SR007 apply-or-skip decision by May 10",
       "description": "Both consult models said DO NOT apply this week with a widget. Apply in Week 4 with 'structured research on emerging player class, Bridge is v0 wedge, 90-day thesis-commit plan' angle, OR skip to SR008. Job 226 reminder scheduled.",
-      "urgent": true,
+      "urgent": false,
       "created": "2026-04-22T05:50:02Z",
-      "resolved": null
+      "resolved": "2026-04-28T20:15:00-07:00",
+      "resolution_note": "Cleared by Idam 2026-04-28: explicit \"clear all these\" on standing-items list."
     },
     {
       "id": "dj-5th-player-path-commitment-2026-05-05",

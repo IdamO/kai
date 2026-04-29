@@ -276,15 +276,14 @@ Ranks 1-3 shipped + 4 consult-driven fixes (commit 964ebe9e). 634 atoms, 617 sup
 - MODEL-004 bridge predictor (r=0.969)
 - All data ingestors (112.5M+ transitions)
 
-### Needs Idam's Attention (updated 2026-04-28)
-- **Tanowitz engagement letter** — sign letter + JR conflict waiver (gmail msg 19dbb13ae97a9aca, 2 PDFs Apr 23). Request retainer wire instructions from Rayna Forman, then pay retainer. Confidentiality: PDFs warn against uploading to AI/LLM (privilege waiver).
+### Needs Idam's Attention (updated 2026-04-28 19:55, cleared 20:15)
+- **Tanowitz engagement letter** — sign letter + JR conflict waiver (gmail msg 19dbb13ae97a9aca, 2 PDFs Apr 23). Request retainer wire instructions from Rayna Forman, then pay retainer.
 - **DJ 5th-player thesis** — path A/B/C commitment on clean synthesis (`files/consultations/2026-04-22-dj-5th-player-CLEAN/kyma-implications-decision-frame.md` sent to Telegram Apr 22). Consumer-only doctrine in force per Apr 22 CORRECTION.
-- **Hook iOS self-test** — install from App Store (ID 6476193312), requires iPhone iOS 18+. 20 min of real usage > entire press cycle.
-- **SR007 skip-or-apply** — decision deadline May 17 (Job #226 fires that day). Current lean: skip, apply SR008 with 30-day thesis-commit plan.
-- **Share payment** — $45 each to Kyma Computer Inc via Mercury ACH/check.
-- **Emily White** — text her 304-941-8118 re Shibuya TestFlight.
-- **Day 2 evening reflection (75 HARD)** — still `pending_reply` from Apr 20 evening cron.
 - **Hims renewal** — Apr 28 06:05 action item, login required at hims.com (Rx renewal, non-mental-health).
+
+<!-- Cleared by Idam 2026-04-28: SR007 skip-or-apply, Hook iOS self-test, share payment, Emily White text, 75 HARD Day 2 evening reflection. Do not re-surface unless Idam re-opens. -->
+<!-- Tanowitz AI/LLM-upload privilege note acknowledged and ignored per Idam 2026-04-28. -->
+
 
 ### Recently Resolved
 - **Apolline birthday gift**: ✅ SHIPPED v4.7. Live at Vercel: https://birthday-gift-three-pied.vercel.app
