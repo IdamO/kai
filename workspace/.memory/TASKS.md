@@ -48,18 +48,25 @@ Both Opus 4.7 and Sonnet 4.5 independently reached the same conclusion: **Bridge
 - Pricing exact boundaries (4.99 default, can test 3.99-7.99)
 - Agent-swarm protocol design (Nostr-like? bespoke? Phase 3)
 
-**Next actions I can do without unblock**:
+**Recently completed (auto-continuation should NOT pick `[x]` items):**
 - [x] **llm-judge consult on Obsidian-for-music SHIPPED 2026-04-17** - Opus 4.7 (25,988 chars) + Sonnet 4.5 (27,580 chars) independent responses + blind judge synthesis (~4000 words, 226KB PDF). Chat URLs: `claude.ai/chat/bf335763...` (Opus), `claude.ai/chat/72a1d1e5...` (Sonnet). Emailed to idam Gmail: msg `19d9c90c61db6fda` (Opus), `19d9ca55164b80dd` (judge synthesis). Artifacts at `files/consultations/2026-04-17-obsidian-for-music/`. **Both models converged independently**: Bridge widget is THE product, Obsidian-for-music reframe is cope/Einstellung. Judge verdict (80% confidence): ship Bridge to 10 Substack curators by Fri Apr 24; do NOT scope vault UX; commit to SR007 only if Week 6 shows 3+ curators embedded in multiple posts.
-- [ ] [DEFERRED per 2026-04-18 llm-judge synthesis §3 kill-list #4] Write arxiv preprint on DeepPref + stem-ablation (~4hr) — synthesis verdict: "If published as blog, do it AFTER May 17, not during pitch window." Kept as pending but do NOT auto-pick during Apr 18–May 17 window.
-- [ ] a16z SR007 deck drafting (May 17 deadline, 30 days out)
 - [x] [SYNTHESIS pre-mortem #1, by May 1] Permutation test on correlator edges — COMPLETED 2026-04-18 04:05 PT. v1 formula FAILED (2/20 robust), v1-regularized PASSED (19/20 robust, mean intersection 11.63/20). Commits: kyma-external-brain 90f09c5, kyma-engine 1047e05. Findings: `.claude/research-results/2026-04-18-cooccurrence-vs-compatibility.md`.
-- [ ] [DEFERRED per Apr 17 consult] First-session onboarding UX (Obsidian-for-music vault) - only pursue if Bridge widget Week 6 kill criteria HITS; if Bridge misses, pivot away from vault framing per judge synthesis
 
-**Blocked on Idam**:
-- [RESOLVED per Apr 17 consult] Both Opus 4.7 and Sonnet 4.5 INDEPENDENTLY concluded that the Obsidian-for-music collapse was wrong strategic framing. Bridge widget is the product. Judge synthesis + both full responses emailed to idam Gmail (msg `19d9ca55164b80dd`). Next unblocked decision now: (1) authorize Bridge curator outreach ('send it') for 10 prepped Substack writers in `docs/curator-seeding-plan.md`, (2) decide SR007 apply-with-Bridge-data OR withdraw-and-target-SR008.
-- Authorize Bridge curator outreach ("send it" for 10 prepped Substack emails)
-- Answer 10 open questions from brain analysis §8
-- Pricing $4.99 tier approval
+## ⛔ DO-NOT-AUTO-PICK (windowed/deferred/blocked-on-Idam)
+> These are NOT pickable by the auto-continuation prompt or the Task Puller cron (Job #212). They are tracked here for visibility and to prevent re-derivation; each has an inline guard explaining why.
+
+- ⛔ DEFERRED [arxiv preprint on DeepPref + stem-ablation] - 2026-04-18 llm-judge synthesis §3 kill-list #4: "If published as blog, do it AFTER May 17, not during pitch window." Auto-pick only allowed AFTER 2026-05-17. Estimate: ~4hr.
+- ⛔ DEFERRED [First-session onboarding UX (Obsidian-for-music vault)] - Apr 17 consult: only pursue if Bridge widget Week 6 kill criteria HITS. Auto-pick blocked until Bridge measurement is in.
+- 🔴 NEEDS-IDAM [a16z SR007 deck drafting] - May 17 fundraise deadline. SR007 skip-or-apply was cleared from Idam's attention list 2026-04-28 (current lean per cleared item: skip SR007, target SR008). Don't pick this autonomously. Idam's call.
+
+## Blocked on Idam (decisions only Idam can make)
+
+**Blocked on Idam (decisions/comms only):**
+- [RESOLVED per Apr 17 consult] Both Opus 4.7 and Sonnet 4.5 INDEPENDENTLY concluded that the Obsidian-for-music collapse was wrong strategic framing. Bridge widget is the product. Judge synthesis + both full responses emailed to idam Gmail (msg `19d9ca55164b80dd`).
+- 🔴 Authorize Bridge curator outreach ("send it" for 10 prepped Substack emails)
+- 🔴 Answer 10 open questions from brain analysis §8
+- 🔴 Pricing $4.99 tier approval
+- 🔴 Secret Society reframe (Apr 28 memo) - pick Option 1/2/3 or push back on framing
 
 **Supersedes**: prior "Kyma OS pipeline" tasks + v3 decomposition doc. v3 is archived at `files/research/kyma-os-02-v3-decomposition-transcripts-integrated-2026-04-17.md` for reference.
 
@@ -165,8 +172,8 @@ Both Opus 4.7 and Sonnet 4.5 independently reached the same conclusion: **Bridge
 - [x] **Bridge MVP** — DONE. `api/bridge.py` on :8881. Search, create, permalink, 12s crossfade, OG meta, analytics. Commit 2ec2e00.
 - [x] **Quality filter** — DONE. DeepPref cosine scoring. Range: -97% (anti-correlated) to 98% (highly compatible).
 - [x] **Curator seeding** — DONE. 10 bridges created across genres. 10 Substack curators researched and matched. Outreach plan: `docs/curator-seeding-plan.md`. Commit 0b461fa. **BLOCKED on Idam's "send it"** for outbound emails. Public URL available via Cloudflare tunnel.
-- [ ] **Hedge: arxiv preprint** — SKIPPED for now. Preprint stronger with 14-day engagement data from curator seeding. Revisit after kill window.
-- [ ] **Hedge: consulting outreach** — SKIPPED. Email-gated + premature before primary bet has 14 days to prove itself.
+- ⛔ DEFERRED [Hedge: arxiv preprint] - SKIPPED for now. Preprint stronger with 14-day engagement data from curator seeding. Revisit after kill window. NOT auto-pickable.
+- ⛔ DEFERRED [Hedge: consulting outreach] - SKIPPED. Email-gated + premature before primary bet has 14 days to prove itself. NOT auto-pickable (also outbound-comms gated).
 
 ### BATH PLAYLIST AGENT — Essay-Driven Reframe (PAUSED — infra feeds Bridge)
 Idam's Apple Pages essays (Jan-Feb 2026) reject Taste DNA as Wrapped 2.0 / identity signaling.
@@ -196,8 +203,8 @@ Core thesis: Agent sends you music you'll love without you explaining yourself. 
 **Phase 4: Measure & Pivot (Month 3)** ← INFRASTRUCTURE COMPLETE
 - [x] **Success metric** — ✅ discovery_completion_rate in GET /api/metrics. 57% of unique discovered tracks finished (4/7). Proxy for "listened to unheard track" (can't detect library add without Spotify OAuth). Commit 2670ca7.
 - [x] **Consumer product gate** — ✅ phase4_gate in /api/metrics. Automated check: k > 0.3 AND monthly_churn < 8%. Currently passing on test data (k=1.0, churn=0%). MAU/WAU computed from 28d/7d signal windows. Commit 2670ca7.
-- [ ] **Real user validation** — Gate infrastructure built. Weekly digest cron wired (Job 201, 7-day interval). Need real users to generate meaningful data. Idam notified (Job 200).
-  - **Dogfood UI LIVE** on :8880 (`api/dogfood.py`, commit ba40f47). Idam's library: 962/4,280 tracks matched to MERT set. Play-time-weighted 64d taste vector. Discovery + mashup preview + Like/Nope signals with EMA learning. 11ms response.
+- 🔴 NEEDS-REAL-USERS [Real user validation] - Gate infrastructure built. Weekly digest cron wired (Job 201, 7-day interval). Need real users to generate meaningful data. Idam notified (Job 200). NOT auto-pickable; gated on having real Bridge curator users + Bath Playlist members.
+  - Dogfood UI LIVE on :8880 (api/dogfood.py, commit ba40f47). Idam's library: 962/4,280 tracks matched to MERT set. Play-time-weighted 64d taste vector. Discovery + mashup preview + Like/Nope signals with EMA learning. 11ms response.
 
 ### DO NOT BUILD (from verdict)
 - No playback service. No p.scdn.co. No audio distribution.
@@ -334,8 +341,8 @@ Ranks 1-3 shipped + 4 consult-driven fixes (commit 964ebe9e). 634 atoms, 617 sup
 - Curated transitions: 27.2M matched
 
 ## Open (Non-Pivot)
-- [ ] **Covered CA eligibility** — Needs Idam login.
-- [ ] **Fundraise narrative reframe** — Now framed around Taste Oracle.
+- 🔴 NEEDS-IDAM [Covered CA eligibility] - Needs Idam portal login. NOT auto-pickable.
+- 🔴 NEEDS-IDAM [Fundraise narrative reframe] - Was framed around Taste Oracle; superseded by 2026-04-28 Secret Society reframe (see files/2026-04-28-kyma-secret-society-reframe.md). Cofounder call. NOT auto-pickable.
 
 ## Queued — CLAUDE.md Super-Upgrade Consultation (requested 2026-04-17 mid-stream)
 
