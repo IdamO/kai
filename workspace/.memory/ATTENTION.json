@@ -514,6 +514,51 @@
       "created": "2026-04-22T16:00:14.510478+00:00",
       "resolved": null,
       "updated": "2026-04-22T19:35:29.847844+00:00"
+    },
+    {
+      "id": "verra-93a-attorney-outreach-drafts-2026-04-24",
+      "type": "blocker",
+      "urgent": false,
+      "title": "Verra 93A: Bunnell/Rice drafts SUPERSEDED by Tanowitz retainer",
+      "context": "SUPERSEDED 2026-04-28. Idam retained Tanowitz Law Office (Newton MA, 1320 Centre St Suite 305, Rayna Forman office@tanowitzlaw.com 617-965-1130). Engagement letter + JR conflict waiver sent Apr 23 09:01 (gmail msg 19dbb13ae97a9aca). Apr 28 07:15 PDT calendar block 'Sign Tanowitz'. Joint rep Idam+Apolline. Bunnell/Rice outreach drafts at files/verra-93a-attorney-outreach-drafts-2026-04-24.md are DEAD - do not send.",
+      "created": "2026-04-24T17:13:00-07:00",
+      "resolved": "2026-04-28T19:55:00-07:00"
+    },
+    {
+      "id": "irs-installment-non-idme-paths-2026-04-24",
+      "type": "blocker",
+      "urgent": false,
+      "title": "IRS installment: CONFIRMED INSTALLMENTED (Idam Apr 28)",
+      "context": "RESOLVED 2026-04-28. Idam verbatim: 'IRS is confirmed installmented'. Pre-filled Form 9465 + non-ID.me path guide at files/irs-installment/ are obsolete. Path actually used not visible from Kai-side (likely paper mail confirmation or phone). $91,647 balance now on installment plan.",
+      "created": "2026-04-24T17:13:00-07:00",
+      "resolved": "2026-04-28T19:55:00-07:00"
+    },
+    {
+      "id": "tanowitz-engagement-letter-2026-04-28",
+      "type": "blocker",
+      "urgent": true,
+      "title": "Tanowitz Law: sign engagement letter + waiver + send retainer",
+      "context": "Engagement letter (210KB PDF) + Joint Representation Conflict Waiver (164KB PDF) attached to gmail msg 19dbb13ae97a9aca (Apr 23 09:01 PT). Rayna Forman: 'may be digitally signed and returned and the retainer may be paid by mailed check or wire transfer-the instructions for which can be forwarded on request.' Apr 28 07:15 PDT cal block 'Sign Tanowitz' suggests Idam scheduled signing today. Open question: are letter+waiver signed/returned? Has retainer been requested+paid? No reply visible in Idam's sent folder past 7d. Confidentiality note in letter: do NOT upload PDFs to AI/LLM (privilege waiver risk).",
+      "created": "2026-04-28T19:55:00-07:00",
+      "resolved": null
+    },
+    {
+      "id": "hims-rx-renewal-2026-04-28",
+      "type": "blocker",
+      "urgent": false,
+      "title": "Hims renewal action item (separate from MEDvidi)",
+      "context": "Apr 28 06:05 PT email from hello@alerts.hims.com: 'You have an action item from your provider to renew your prescription.' Subject category: Renewal | Rx - All (No MH) - so this is non-mental-health Rx (likely hair/skin/derm subscription). Login required at hims.com to action. Separate from MEDvidi/lisdexamfetamine path.",
+      "created": "2026-04-28T19:55:00-07:00",
+      "resolved": null
+    },
+    {
+      "id": "kyma-anthropic-billing-live-2026-04-28",
+      "type": "milestone",
+      "urgent": false,
+      "title": "Anthropic API billing now live on Kyma Computer Mercury card ($200 Apr 28)",
+      "context": "Mercury notification to idam@kyma.stream Apr 28 05:20 UTC: 'Apolline's card has been charged $200.00 by Anthropic'. First Kyma-billed Anthropic charge - completes the migration from emmanuel.obiahu personal billing. All Kyma services now charging the correct card.",
+      "created": "2026-04-28T19:55:00-07:00",
+      "resolved": "2026-04-28T19:55:00-07:00"
     }
   ]
 }

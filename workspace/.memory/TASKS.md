@@ -65,16 +65,15 @@ Both Opus 4.7 and Sonnet 4.5 independently reached the same conclusion: **Bridge
 
 ---
 
-## ⚠️ POST-DEADLINE FOLLOW-UP (Apr 15 items, 7 days past — verify state)
+## ✅ RESOLVED (2026-04-28 catch-up)
 
-### Tax Filing + Payment (Apr 15 deadline passed)
-**Status as of 2026-04-22:** Return signed Mar 23. Installment plan STILL NOT SET UP. Blocked on Idam's ID.me biometric auth to reach irs.gov/opa. Balance $91,647 ($88K fed + $3.5K CA). Short-term 180-day plan (<$100K, $0 setup fee) remains the cleanest path; requires Idam's photo ID + bank routing/account + IRS Online Account login.
-**Reminder jobs firing monthly:** #61 May 1, #62 Jun 1, #63 Jul 1, #64 Aug 1, #65 Sep 1, #57 Jun 15 (Q2 estimated), #58 Sep 15 (Q3 + Oct 15 return).
-**Action on Idam: set up installment agreement ASAP.** Penalties accruing at 0.5%/mo failure-to-pay + 8% annual interest = ~$4,500/year.
+### Tax Filing + Payment — INSTALLMENTED
+**Status 2026-04-28:** Idam confirmed verbatim: "IRS is confirmed installmented." $91,647 ($88K fed + $3.5K CA) now on installment plan. Path used not visible Kai-side (likely paper mail or phone confirmation). Form 9465 pre-fill + non-ID.me path guide at `files/irs-installment/` is obsolete.
+**Reminder jobs still active:** #61 May 1, #62 Jun 1, #63 Jul 1, #64 Aug 1, #65 Sep 1, #57 Jun 15 (Q2 estimated), #58 Sep 15 (Q3 + Oct 15 return). Keep firing as monthly payment reminders.
 
-### Verra 93A Consultation (Clifford Law, held Apr 15)
-**Status as of 2026-04-22:** Consultation COMPLETED Apr 15. Courtney Libon (GBLS) followed up Apr 17 with attorney referrals — Colin Bunnell, Ed Rice. Idam told her "will reach out next week" in reply (sent msg 19d9cec48c60de3c, Apr 17 19:35 PT).
-**Action on Idam: contact Colin Bunnell and Ed Rice this week (Apr 20-24 window, currently in-window).** Brief at `files/verra-93a-litigation-brief-v5.md`. $15K-$75K range at stake; Apr 30 deposit deadline or Sep 11 fallback.
+### Verra 93A — TANOWITZ LAW OFFICE RETAINED
+**Status 2026-04-28:** Tanowitz Law Office PC (Newton MA, Rayna Forman, office@tanowitzlaw.com, 617-965-1130) sent engagement letter Apr 23 (gmail msg 19dbb13ae97a9aca, joint Idam+Apolline rep). Apr 28 07:15 PDT calendar block "Sign Tanowitz" — likely signed today. Bunnell + Rice outreach drafts at `files/verra-93a-attorney-outreach-drafts-2026-04-24.md` are DEAD (do not send).
+**Open on Idam:** confirm letter+waiver signed and returned, request retainer wire instructions, pay retainer. Confidentiality: PDFs explicitly say uploading to AI/LLM may waive privilege — handle locally.
 
 
 ## Kai Infra Maintenance
@@ -277,15 +276,15 @@ Ranks 1-3 shipped + 4 consult-driven fixes (commit 964ebe9e). 634 atoms, 617 sup
 - MODEL-004 bridge predictor (r=0.969)
 - All data ingestors (112.5M+ transitions)
 
-### Needs Idam's Attention (updated 2026-04-22)
-- **IRS installment plan** — still not set up (blocked on ID.me biometric auth). Penalties accruing. See § POST-DEADLINE FOLLOW-UP above for options.
-- **Verra 93A follow-up** — contact Colin Bunnell + Ed Rice (Courtney Libon referrals from Apr 17). See § POST-DEADLINE FOLLOW-UP above.
+### Needs Idam's Attention (updated 2026-04-28)
+- **Tanowitz engagement letter** — sign letter + JR conflict waiver (gmail msg 19dbb13ae97a9aca, 2 PDFs Apr 23). Request retainer wire instructions from Rayna Forman, then pay retainer. Confidentiality: PDFs warn against uploading to AI/LLM (privilege waiver).
 - **DJ 5th-player thesis** — path A/B/C commitment on clean synthesis (`files/consultations/2026-04-22-dj-5th-player-CLEAN/kyma-implications-decision-frame.md` sent to Telegram Apr 22). Consumer-only doctrine in force per Apr 22 CORRECTION.
 - **Hook iOS self-test** — install from App Store (ID 6476193312), requires iPhone iOS 18+. 20 min of real usage > entire press cycle.
 - **SR007 skip-or-apply** — decision deadline May 17 (Job #226 fires that day). Current lean: skip, apply SR008 with 30-day thesis-commit plan.
 - **Share payment** — $45 each to Kyma Computer Inc via Mercury ACH/check.
 - **Emily White** — text her 304-941-8118 re Shibuya TestFlight.
 - **Day 2 evening reflection (75 HARD)** — still `pending_reply` from Apr 20 evening cron.
+- **Hims renewal** — Apr 28 06:05 action item, login required at hims.com (Rx renewal, non-mental-health).
 
 ### Recently Resolved
 - **Apolline birthday gift**: ✅ SHIPPED v4.7. Live at Vercel: https://birthday-gift-three-pied.vercel.app
